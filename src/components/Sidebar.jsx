@@ -4,12 +4,13 @@ import PinnedSection from './PinnedSection';
 import ContextMenu from './ContextMenu';
 import ConfirmationModal from './ConfirmationModal';
 import SettingsModal from './SettingsModal';
+import SubgroupModal from './SubgroupModal';
 import { useTabs } from '../hooks/useTabs';
 import { useTheme } from '../context/ThemeContext';
-import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon } from 'lucide-react';
+import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon, FolderPlus } from 'lucide-react';
 
 const Sidebar = () => {
-    const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse, getExportPayload, importData } = useTabs();
+    const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse, getExportPayload, importData, setTabSubgroup } = useTabs();
     const { theme, toggleTheme } = useTheme();
     const [contextMenu, setContextMenu] = useState(null);
     const [tabToRemove, setTabToRemove] = useState(null);
@@ -19,6 +20,7 @@ const Sidebar = () => {
     const [settingsMessage, setSettingsMessage] = useState('');
     const [settingsError, setSettingsError] = useState('');
     const fileInputRef = useRef(null);
+    const [subgroupTarget, setSubgroupTarget] = useState(null);
 
 
 
@@ -49,6 +51,25 @@ const Sidebar = () => {
             removeTab(tabToRemove.id);
             setTabToRemove(null);
         }
+    };
+
+    const handleOpenSubgroupModal = (tab) => {
+        const tabGroup = groups.find(g => g.id === tab.groupId);
+        if (!tabGroup) {
+            return;
+        }
+        setSubgroupTarget({
+            tabId: tab.id,
+            groupId: tabGroup.id
+        });
+        setContextMenu(null);
+    };
+
+    const handleSubgroupConfirm = (name) => {
+        if (subgroupTarget?.tabId) {
+            setTabSubgroup(subgroupTarget.tabId, name || undefined);
+        }
+        setSubgroupTarget(null);
     };
 
     const handleExport = () => {
@@ -115,6 +136,12 @@ const Sidebar = () => {
 
     const pinnedTabs = tabs.filter(t => t.isPinned);
     const unpinnedTabs = tabs.filter(t => !t.isPinned);
+
+    const subgroupModalGroup = subgroupTarget ? groups.find(g => g.id === subgroupTarget.groupId) : null;
+    const subgroupModalTab = subgroupTarget ? tabs.find(t => t.id === subgroupTarget.tabId) : null;
+    const subgroupOptions = subgroupModalGroup
+        ? tabs.filter(t => t.groupId === subgroupModalGroup.id && t.subgroup).map(t => t.subgroup)
+        : [];
 
     return (
         <div className="flex flex-col h-full bg-arc-bg text-arc-text select-none font-sans">
@@ -228,6 +255,7 @@ const Sidebar = () => {
                                     onClose={closeTab} // Regular group tabs are ghosted
                                     onToggleCollapse={toggleGroupCollapse}
                                     onContextMenu={handleContextMenu}
+                                    groupBySubgroup={true}
                                 />
                             );
                         }
@@ -282,6 +310,11 @@ const Sidebar = () => {
                     y={contextMenu.y}
                     onClose={() => setContextMenu(null)}
                     options={[
+                        ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
+                            label: 'Add to Subgroup',
+                            icon: <FolderPlus size={14} />,
+                            onClick: () => handleOpenSubgroupModal(contextMenu.tab)
+                        }] : []),
                         {
                             label: contextMenu.tab.isPinned ? 'Unpin Tab' : 'Pin Tab',
                             icon: contextMenu.tab.isPinned ? <PinOff size={14} /> : <Pin size={14} />,
@@ -314,6 +347,15 @@ const Sidebar = () => {
                 isBusy={isProcessingImport}
                 message={settingsMessage}
                 error={settingsError}
+            />
+
+            <SubgroupModal
+                isOpen={!!subgroupTarget}
+                groupTitle={subgroupModalGroup?.title}
+                existingSubgroups={subgroupOptions}
+                initialValue={subgroupModalTab?.subgroup || ''}
+                onConfirm={handleSubgroupConfirm}
+                onClose={() => setSubgroupTarget(null)}
             />
 
             <input

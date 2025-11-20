@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import TabItem from './TabItem';
 
-const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleCollapse, onContextMenu, groupByHost = false }) => {
+const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleCollapse, onContextMenu, groupByHost = false, groupBySubgroup = false }) => {
     const { id, title, color, collapsed } = group;
 
     // Map Chrome group colors to CSS colors (tailwind classes or hex)
@@ -85,6 +85,47 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                                         </div>
                                     </div>
                                 ));
+                            })()
+                        ) : groupBySubgroup ? (
+                            (() => {
+                                const tabsBySubgroup = new Map();
+                                tabs.forEach(tab => {
+                                    const subgroupKey = tab.subgroup && tab.subgroup.trim() ? tab.subgroup.trim() : '__ungrouped';
+                                    if (!tabsBySubgroup.has(subgroupKey)) {
+                                        tabsBySubgroup.set(subgroupKey, []);
+                                    }
+                                    tabsBySubgroup.get(subgroupKey).push(tab);
+                                });
+
+                                const sortedEntries = Array.from(tabsBySubgroup.entries()).sort(([a], [b]) => {
+                                    if (a === '__ungrouped') return 1;
+                                    if (b === '__ungrouped') return -1;
+                                    return a.localeCompare(b, 'zh-Hans');
+                                });
+
+                                return sortedEntries.map(([subgroup, subgroupTabs]) => {
+                                    const isUngrouped = subgroup === '__ungrouped';
+                                    const displayName = isUngrouped ? '未分组' : subgroup;
+                                    return (
+                                        <div key={subgroup} className="mb-2 last:mb-0">
+                                            <div className="px-2 py-1 text-xs font-bold text-arc-muted uppercase tracking-wider opacity-70">
+                                                {displayName}
+                                            </div>
+                                            <div className="space-y-0.5">
+                                                {subgroupTabs.map(tab => (
+                                                    <div key={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
+                                                        <TabItem
+                                                            tab={tab}
+                                                            isActive={tab.id === activeTabId}
+                                                            onClick={() => onTabClick(tab)}
+                                                            onClose={onClose}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                });
                             })()
                         ) : (
                             tabs.map(tab => (

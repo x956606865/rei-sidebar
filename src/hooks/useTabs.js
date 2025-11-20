@@ -136,7 +136,8 @@ export const useTabs = () => {
           favIconUrl: t.favIconUrl,
           isGhost: t.isGhost,
           isPinned: t.isPinned,
-          groupId: t.groupId
+          groupId: t.groupId,
+          subgroup: t.subgroup
         }));
         chrome.storage.local.set({ savedTabs: tabsToSave });
       }
@@ -335,7 +336,8 @@ export const useTabs = () => {
         favIconUrl: t.favIconUrl,
         isGhost: !!t.isGhost,
         isPinned: !!t.isPinned,
-        groupId: t.groupId
+        groupId: t.groupId,
+        subgroup: t.subgroup
       }))
     };
   };
@@ -403,7 +405,8 @@ export const useTabs = () => {
         favIconUrl: tab.favIconUrl,
         isGhost: true,
         isPinned: !!tab.isPinned,
-        groupId: targetGroupId ?? -1
+        groupId: targetGroupId ?? -1,
+        subgroup: tab.subgroup
       });
     });
 
@@ -422,6 +425,10 @@ export const useTabs = () => {
     };
   };
 
+  const setTabSubgroup = (tabId, subgroupName) => {
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, subgroup: subgroupName || undefined } : t));
+  };
+
   return {
     tabs,
     activeTabId,
@@ -433,6 +440,7 @@ export const useTabs = () => {
     groups,
     toggleGroupCollapse,
     getExportPayload,
-    importData
+    importData,
+    setTabSubgroup
   };
 };
