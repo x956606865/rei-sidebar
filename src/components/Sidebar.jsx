@@ -11,6 +11,7 @@ const Sidebar = () => {
     const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse } = useTabs();
     const [contextMenu, setContextMenu] = useState(null);
     const [tabToRemove, setTabToRemove] = useState(null);
+    const [isInboxCollapsed, setIsInboxCollapsed] = useState(false);
 
 
 
@@ -101,6 +102,21 @@ const Sidebar = () => {
                     const itemsToRender = [];
                     const processedGroupIds = new Set();
 
+                    // 1. Render Inbox (ungrouped tabs)
+                    if (ungroupedTabs.length > 0) {
+                        itemsToRender.push({
+                            type: 'inbox',
+                            group: {
+                                id: 'inbox',
+                                title: 'Inbox',
+                                color: 'grey', // Default color
+                                collapsed: isInboxCollapsed
+                            },
+                            tabs: ungroupedTabs
+                        });
+                    }
+
+                    // 2. Render Groups
                     unpinnedTabs.forEach(tab => {
                         if (tab.groupId && tab.groupId !== -1) {
                             if (!processedGroupIds.has(tab.groupId)) {
@@ -112,18 +128,26 @@ const Sidebar = () => {
                                         group,
                                         tabs: groupedTabs.get(tab.groupId)
                                     });
-                                } else {
-                                    // Group not found (maybe sync issue), render as item
-                                    itemsToRender.push({ type: 'tab', tab });
                                 }
                             }
-                        } else {
-                            itemsToRender.push({ type: 'tab', tab });
                         }
                     });
 
-                    return itemsToRender.map((item, index) => {
-                        if (item.type === 'group') {
+                    return itemsToRender.map((item) => {
+                        if (item.type === 'inbox') {
+                            return (
+                                <TabGroup
+                                    key="inbox-group"
+                                    group={item.group}
+                                    tabs={item.tabs}
+                                    activeTabId={activeTabId}
+                                    onTabClick={switchToTab}
+                                    onClose={removeTab} // Inbox tabs are removed directly
+                                    onToggleCollapse={() => setIsInboxCollapsed(!isInboxCollapsed)}
+                                    onContextMenu={handleContextMenu}
+                                />
+                            );
+                        } else if (item.type === 'group') {
                             return (
                                 <TabGroup
                                     key={`group-${item.group.id}`}
@@ -131,23 +155,13 @@ const Sidebar = () => {
                                     tabs={item.tabs}
                                     activeTabId={activeTabId}
                                     onTabClick={switchToTab}
-                                    onClose={closeTab}
+                                    onClose={closeTab} // Regular group tabs are ghosted
                                     onToggleCollapse={toggleGroupCollapse}
                                     onContextMenu={handleContextMenu}
                                 />
                             );
-                        } else {
-                            return (
-                                <div key={item.tab.id} onContextMenu={(e) => handleContextMenu(e, item.tab)}>
-                                    <TabItem
-                                        tab={item.tab}
-                                        isActive={item.tab.id === activeTabId}
-                                        onClick={() => switchToTab(item.tab)}
-                                        onClose={closeTab}
-                                    />
-                                </div>
-                            );
                         }
+                        return null;
                     });
                 })()}
             </div>
