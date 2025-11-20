@@ -10,7 +10,7 @@ const PinnedSection = ({ tabs, activeTabId, onTabClick, onContextMenu }) => {
                     key={tab.id}
                     className={`
             aspect-square rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200
-            ${tab.id === activeTabId ? 'bg-white/10 text-white shadow-sm' : 'bg-white/5 text-arc-muted hover:bg-white/10 hover:text-white'}
+            ${tab.id === activeTabId ? 'bg-arc-active text-arc-text shadow-sm' : 'bg-arc-hover text-arc-muted hover:bg-arc-active hover:text-arc-text'}
             ${tab.isGhost ? 'opacity-40 grayscale' : ''}
           `}
                     onClick={() => onTabClick(tab)}

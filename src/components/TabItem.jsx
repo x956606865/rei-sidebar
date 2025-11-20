@@ -6,7 +6,7 @@ const TabItem = ({ tab, isActive, onClick, onClose }) => {
         <div
             className={`
         group flex items-center gap-3 px-3 py-1.5 rounded-lg cursor-pointer text-[13px] transition-all duration-200
-        ${isActive ? 'bg-white/10 text-white shadow-sm' : 'text-arc-muted hover:bg-white/5 hover:text-white'}
+        ${isActive ? 'bg-arc-active text-arc-text shadow-sm' : 'text-arc-muted hover:bg-arc-hover hover:text-arc-text'}
         ${tab.isGhost ? 'opacity-40 hover:opacity-70 grayscale' : ''}
       `}
             onClick={onClick}
@@ -28,7 +28,7 @@ const TabItem = ({ tab, isActive, onClick, onClose }) => {
             {/* Close Button (visible on hover) */}
             <button
                 className={`
-          opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-600 transition-opacity
+          opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-arc-text/10 transition-opacity
           ${isActive ? 'opacity-100' : ''}
         `}
                 onClick={(e) => {

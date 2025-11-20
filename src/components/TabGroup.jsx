@@ -67,7 +67,7 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                                 return Array.from(tabsByHost.entries()).map(([host, hostTabs]) => (
                                     <div key={host} className="mb-2 last:mb-0">
                                         {host !== 'Other' && (
-                                            <div className="px-2 py-1 text-[10px] font-bold text-arc-muted uppercase tracking-wider opacity-50">
+                                            <div className="px-2 py-1 text-xs font-bold text-arc-muted uppercase tracking-wider opacity-50">
                                                 {host}
                                             </div>
                                         )}
