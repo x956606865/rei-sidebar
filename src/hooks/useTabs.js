@@ -233,17 +233,45 @@ export const useTabs = () => {
 
   const closeTab = async (tabId) => {
     if (typeof chrome === 'undefined' || !chrome.tabs) {
+      // In mock mode, closeTab behaves like removeTab for simplicity unless we want to simulate ghosting
+      setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isGhost: true } : t));
+      return;
+    }
+
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab) return;
+
+    if (tab.isGhost) {
+      // If it's already a ghost, "closing" it via X shouldn't do anything based on new requirements
+      // It should only be removed via the "Remove" context menu option
+      return;
+    } else {
+      // If it's a real tab, close it in browser. 
+      // The 'onRemoved' listener will handle marking it as ghost.
+      await chrome.tabs.remove(tabId);
+    }
+  };
+
+  const removeTab = async (tabId) => {
+    // Permanently remove the tab from the list
+    if (typeof chrome === 'undefined' || !chrome.tabs) {
       setTabs(prev => prev.filter(t => t.id !== tabId));
       return;
     }
 
-    // If it's a ghost tab, remove it completely from list
     const tab = tabs.find(t => t.id === tabId);
-    if (tab?.isGhost) {
-      setTabs(prev => prev.filter(t => t.id !== tabId));
-    } else {
-      // If it's a real tab, close it in browser (listener will mark it as ghost)
-      await chrome.tabs.remove(tabId);
+
+    // Optimistically remove from state immediately
+    setTabs(prev => prev.filter(t => t.id !== tabId));
+
+    // If it's a real active tab (not ghost), also close it in browser
+    if (tab && !tab.isGhost) {
+      try {
+        await chrome.tabs.remove(tabId);
+      } catch (e) {
+        // Ignore error if tab is already gone
+        console.log('Tab might already be closed', e);
+      }
     }
   };
 
@@ -284,6 +312,7 @@ export const useTabs = () => {
     activeTabId,
     switchToTab,
     closeTab,
+    removeTab,
     clearGhosts,
     clearGhosts,
     togglePin,

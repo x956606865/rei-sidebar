@@ -3,12 +3,14 @@ import TabItem from './TabItem';
 import TabGroup from './TabGroup';
 import PinnedSection from './PinnedSection';
 import ContextMenu from './ContextMenu';
+import ConfirmationModal from './ConfirmationModal';
 import { useTabs } from '../hooks/useTabs';
-import { Plus, Settings, Trash2, Pin, PinOff } from 'lucide-react';
+import { Plus, Settings, Trash2, Pin, PinOff, X } from 'lucide-react';
 
 const Sidebar = () => {
-    const { tabs, groups, activeTabId, switchToTab, closeTab, clearGhosts, togglePin, toggleGroupCollapse } = useTabs();
+    const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse } = useTabs();
     const [contextMenu, setContextMenu] = useState(null);
+    const [tabToRemove, setTabToRemove] = useState(null);
 
 
 
@@ -27,6 +29,18 @@ const Sidebar = () => {
             y: e.clientY,
             tab
         });
+    };
+
+    const handleRemoveClick = (tab) => {
+        setTabToRemove(tab);
+        setContextMenu(null);
+    };
+
+    const handleRemoveConfirm = () => {
+        if (tabToRemove) {
+            removeTab(tabToRemove.id);
+            setTabToRemove(null);
+        }
     };
 
     const pinnedTabs = tabs.filter(t => t.isPinned);
@@ -176,10 +190,25 @@ const Sidebar = () => {
                             label: contextMenu.tab.isPinned ? 'Unpin Tab' : 'Pin Tab',
                             icon: contextMenu.tab.isPinned ? <PinOff size={14} /> : <Pin size={14} />,
                             onClick: () => togglePin(contextMenu.tab.id)
+                        },
+                        {
+                            label: 'Remove Tab',
+                            icon: <Trash2 size={14} />,
+                            onClick: () => handleRemoveClick(contextMenu.tab)
                         }
                     ]}
                 />
             )}
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={!!tabToRemove}
+                title="Remove Tab"
+                message={`Are you sure you want to remove "${tabToRemove?.title}"? This action cannot be undone.`}
+                confirmLabel="Remove"
+                onConfirm={handleRemoveConfirm}
+                onCancel={() => setTabToRemove(null)}
+            />
         </div>
     );
 };
