@@ -1,0 +1,21 @@
+{
+    "manifest_version": 3,
+    "name": "Rei Sidebar",
+    "version": "1.0",
+    "description": "Arc-style sidebar for Chrome",
+    "permissions": [
+        "sidePanel",
+        "tabs",
+        "storage",
+        "activeTab"
+    ],
+    "side_panel": {
+        "default_path": "index.html"
+    },
+    "action": {
+        "default_title": "Open Sidebar"
+    },
+    "background": {
+        "service_worker": "background.js"
+    }
+}
