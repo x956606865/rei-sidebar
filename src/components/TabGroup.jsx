@@ -111,11 +111,11 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                                 });
 
                                 return sortedEntries.map(([subgroup, subgroupTabs]) => {
-                                    const isUngrouped = subgroup === '__ungrouped';
-                                    const displayName = isUngrouped ? '未分组' : subgroup;
-                                    return (
-                                        <div key={subgroup} className="mb-2 last:mb-0">
-                                            <div className="px-2 py-1 text-xs font-bold text-arc-muted uppercase tracking-wider opacity-70">
+                                            const isUngrouped = subgroup === '__ungrouped';
+                                            const displayName = isUngrouped ? '未分组' : subgroup;
+                                            return (
+                                                <div key={subgroup} className="mb-2 last:mb-0">
+                                            <div className="px-2 py-1 text-xs font-bold text-arc-muted uppercase tracking-wider opacity-90">
                                                 {displayName}
                                             </div>
                                             <div className="space-y-0.5">

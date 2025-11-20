@@ -284,7 +284,8 @@ const Sidebar = () => {
                 return;
             }
 
-            const above = candidates.filter(c => c.top < 0).sort((a, b) => b.top - a.top);
+            const appearThreshold = -50; // larger buffer to avoid flicker when near top
+            const above = candidates.filter(c => c.top < appearThreshold).sort((a, b) => b.top - a.top);
             const target = above[0];
 
             if (!target) {
