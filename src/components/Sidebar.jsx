@@ -1,19 +1,24 @@
-import React, { useState } from 'react';
-import TabItem from './TabItem';
+import React, { useRef, useState } from 'react';
 import TabGroup from './TabGroup';
 import PinnedSection from './PinnedSection';
 import ContextMenu from './ContextMenu';
 import ConfirmationModal from './ConfirmationModal';
+import SettingsModal from './SettingsModal';
 import { useTabs } from '../hooks/useTabs';
 import { useTheme } from '../context/ThemeContext';
 import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon } from 'lucide-react';
 
 const Sidebar = () => {
-    const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse } = useTabs();
+    const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse, getExportPayload, importData } = useTabs();
     const { theme, toggleTheme } = useTheme();
     const [contextMenu, setContextMenu] = useState(null);
     const [tabToRemove, setTabToRemove] = useState(null);
     const [isInboxCollapsed, setIsInboxCollapsed] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isProcessingImport, setIsProcessingImport] = useState(false);
+    const [settingsMessage, setSettingsMessage] = useState('');
+    const [settingsError, setSettingsError] = useState('');
+    const fileInputRef = useRef(null);
 
 
 
@@ -43,6 +48,68 @@ const Sidebar = () => {
         if (tabToRemove) {
             removeTab(tabToRemove.id);
             setTabToRemove(null);
+        }
+    };
+
+    const handleExport = () => {
+        try {
+            const payload = getExportPayload();
+            const fileName = `rei-sidebar-backup-${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '')}.json`;
+            const json = JSON.stringify(payload, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            if (typeof chrome !== 'undefined' && chrome.downloads) {
+                chrome.downloads.download({
+                    url,
+                    filename: fileName,
+                    saveAs: true
+                });
+            } else {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            setSettingsMessage(`已导出：${fileName}`);
+            setSettingsError('');
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+        } catch (e) {
+            console.error('导出失败', e);
+            setSettingsError('导出失败，请稍后重试');
+        }
+    };
+
+    const handleImportClick = () => {
+        setSettingsError('');
+        setSettingsMessage('');
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsProcessingImport(true);
+        setSettingsError('');
+        setSettingsMessage('');
+
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            const result = importData(data);
+            setSettingsMessage(`导入完成：新增分组 ${result?.addedGroups || 0} 个，新增标签 ${result?.addedTabs || 0} 个，跳过分组 ${result?.skippedGroups || 0} 个，跳过标签 ${result?.skippedTabs || 0} 个。`);
+        } catch (e) {
+            console.error('导入失败', e);
+            setSettingsError('导入失败，文件格式可能不正确');
+        } finally {
+            setIsProcessingImport(false);
+            if (event.target) {
+                event.target.value = '';
+            }
         }
     };
 
@@ -197,6 +264,11 @@ const Sidebar = () => {
                     <button
                         className="p-2 rounded-md hover:bg-arc-hover text-arc-muted hover:text-white transition-colors"
                         title="Settings"
+                        onClick={() => {
+                            setSettingsError('');
+                            setSettingsMessage('');
+                            setIsSettingsOpen(true);
+                        }}
                     >
                         <Settings size={20} />
                     </button>
@@ -232,6 +304,24 @@ const Sidebar = () => {
                 confirmLabel="Remove"
                 onConfirm={handleRemoveConfirm}
                 onCancel={() => setTabToRemove(null)}
+            />
+
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                onImportClick={handleImportClick}
+                onExportClick={handleExport}
+                isBusy={isProcessingImport}
+                message={settingsMessage}
+                error={settingsError}
+            />
+
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json"
+                className="hidden"
+                onChange={handleFileChange}
             />
         </div>
     );

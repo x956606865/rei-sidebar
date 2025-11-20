@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 
+const normalizeTitle = (title = '') => title.trim().toLowerCase();
+const generateLocalId = (prefix) => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+};
+
 export const useTabs = () => {
   const [tabs, setTabs] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -307,6 +315,113 @@ export const useTabs = () => {
     }
   };
 
+  const getExportPayload = () => {
+    return {
+      meta: {
+        version: 1,
+        exportedAt: new Date().toISOString()
+      },
+      groups: groups.map(g => ({
+        id: g.id,
+        title: g.title,
+        color: g.color,
+        collapsed: !!g.collapsed,
+        isGhost: !!g.isGhost
+      })),
+      tabs: tabs.map(t => ({
+        id: t.id,
+        title: t.title,
+        url: t.url,
+        favIconUrl: t.favIconUrl,
+        isGhost: !!t.isGhost,
+        isPinned: !!t.isPinned,
+        groupId: t.groupId
+      }))
+    };
+  };
+
+  const importData = (payload = {}) => {
+    const incomingGroups = Array.isArray(payload.groups) ? payload.groups : [];
+    const incomingTabs = Array.isArray(payload.tabs) ? payload.tabs : [];
+
+    const groupKeyToId = new Map(groups.map(g => [normalizeTitle(g.title || ''), g.id]));
+    const existingGroupIds = new Set(groups.map(g => String(g.id)));
+    const addedGroups = [];
+
+    incomingGroups.forEach(group => {
+      const key = normalizeTitle(group.title || '');
+      if (!key || groupKeyToId.has(key)) {
+        return;
+      }
+      let newId = generateLocalId('group');
+      while (existingGroupIds.has(String(newId))) {
+        newId = generateLocalId('group');
+      }
+      existingGroupIds.add(String(newId));
+      groupKeyToId.set(key, newId);
+      addedGroups.push({
+        id: newId,
+        title: group.title || 'Untitled Group',
+        color: group.color || 'grey',
+        collapsed: !!group.collapsed,
+        isGhost: true
+      });
+    });
+
+    const mergedGroups = [...groups, ...addedGroups];
+    const groupIdToKey = new Map(mergedGroups.map(g => [g.id, normalizeTitle(g.title || '')]));
+
+    const tabKey = (tab) => {
+      const groupKey = groupIdToKey.get(tab.groupId) || '';
+      return `${tab.url || ''}:::${groupKey}`;
+    };
+
+    const existingTabKeys = new Set(tabs.map(tabKey));
+    const addedTabs = [];
+    const usedTabIds = new Set(tabs.map(t => String(t.id)));
+
+    incomingTabs.forEach(tab => {
+      const sourceGroup = incomingGroups.find(g => g.id === tab.groupId);
+      const targetGroupKey = sourceGroup ? normalizeTitle(sourceGroup.title || '') : '';
+      const targetGroupId = targetGroupKey ? groupKeyToId.get(targetGroupKey) : undefined;
+
+      const groupKeyForTab = targetGroupKey || '';
+      const key = `${tab.url || ''}:::${groupKeyForTab}`;
+      if (existingTabKeys.has(key)) return;
+
+      let newId = generateLocalId('tab');
+      while (usedTabIds.has(String(newId))) {
+        newId = generateLocalId('tab');
+      }
+      usedTabIds.add(String(newId));
+      existingTabKeys.add(key);
+
+      addedTabs.push({
+        id: newId,
+        title: tab.title || tab.url || 'Untitled',
+        url: tab.url,
+        favIconUrl: tab.favIconUrl,
+        isGhost: true,
+        isPinned: !!tab.isPinned,
+        groupId: targetGroupId ?? -1
+      });
+    });
+
+    if (addedGroups.length > 0) {
+      setGroups(prev => [...prev, ...addedGroups]);
+    }
+    if (addedTabs.length > 0) {
+      setTabs(prev => [...prev, ...addedTabs]);
+    }
+
+    return {
+      addedGroups: addedGroups.length,
+      addedTabs: addedTabs.length,
+      skippedGroups: incomingGroups.length - addedGroups.length,
+      skippedTabs: incomingTabs.length - addedTabs.length
+    };
+  };
+
   return {
     tabs,
     activeTabId,
@@ -314,9 +429,10 @@ export const useTabs = () => {
     closeTab,
     removeTab,
     clearGhosts,
-    clearGhosts,
     togglePin,
     groups,
-    toggleGroupCollapse
+    toggleGroupCollapse,
+    getExportPayload,
+    importData
   };
 };
