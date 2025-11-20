@@ -24,14 +24,14 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
         <div className="mb-2">
             {/* Group Header */}
             <div
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer select-none group transition-all duration-200"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-arc-hover cursor-pointer select-none group transition-all duration-200"
                 onClick={() => onToggleCollapse(id)}
             >
-                <div className="text-arc-muted group-hover:text-white transition-colors opacity-70 group-hover:opacity-100">
+                <div className="text-arc-muted group-hover:text-arc-text transition-colors opacity-70 group-hover:opacity-100">
                     {collapsed ? <ChevronRight size={10} strokeWidth={3} /> : <ChevronDown size={10} strokeWidth={3} />}
                 </div>
                 <div className={`w-2 h-2 rounded-full ${groupColorClass} shadow-sm`} />
-                <span className="text-[11px] font-bold tracking-wide text-arc-muted group-hover:text-white transition-colors truncate flex-1 uppercase opacity-90">
+                <span className="text-xs font-bold tracking-wide text-arc-muted group-hover:text-arc-text transition-colors truncate flex-1 uppercase opacity-90">
                     {title || 'Untitled Group'}
                 </span>
             </div>
