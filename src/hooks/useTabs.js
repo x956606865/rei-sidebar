@@ -68,7 +68,8 @@ export const useTabs = () => {
         title: t.title,
         url: t.url,
         favIconUrl: t.favIconUrl,
-        isGhost: t.isGhost
+        isGhost: t.isGhost,
+        isPinned: t.isPinned
       }));
       chrome.storage.local.set({ savedTabs: tabsToSave });
     }
@@ -152,11 +153,21 @@ export const useTabs = () => {
     setTabs(prev => prev.filter(t => !t.isGhost));
   };
 
+  const togglePin = (tabId) => {
+    setTabs(prev => prev.map(t => {
+      if (t.id === tabId) {
+        return { ...t, isPinned: !t.isPinned };
+      }
+      return t;
+    }));
+  };
+
   return {
     tabs,
     activeTabId,
     switchToTab,
     closeTab,
-    clearGhosts
+    clearGhosts,
+    togglePin
   };
 };
