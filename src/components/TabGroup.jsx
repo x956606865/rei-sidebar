@@ -31,7 +31,7 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                     {collapsed ? <ChevronRight size={10} strokeWidth={3} /> : <ChevronDown size={10} strokeWidth={3} />}
                 </div>
                 <div className={`w-2 h-2 rounded-full ${groupColorClass} shadow-sm`} />
-                <span className="text-xs font-bold tracking-wide text-arc-muted group-hover:text-arc-text transition-colors truncate flex-1 uppercase opacity-90">
+                <span className="text-sm font-bold tracking-wide text-arc-muted group-hover:text-arc-text transition-colors truncate flex-1 uppercase opacity-90">
                     {title || 'Untitled Group'}
                 </span>
             </div>
