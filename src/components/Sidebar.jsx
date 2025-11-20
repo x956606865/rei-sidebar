@@ -145,6 +145,7 @@ const Sidebar = () => {
                                     onClose={removeTab} // Inbox tabs are removed directly
                                     onToggleCollapse={() => setIsInboxCollapsed(!isInboxCollapsed)}
                                     onContextMenu={handleContextMenu}
+                                    groupByHost={true}
                                 />
                             );
                         } else if (item.type === 'group') {

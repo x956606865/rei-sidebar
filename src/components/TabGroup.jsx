@@ -43,63 +43,61 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                     <div className={`absolute left-[15px] top-0 bottom-2 w-[2px] rounded-full ${groupColorClass} opacity-20`} />
 
                     <div className="pl-6 space-y-0.5">
-                        <div className="pl-6 space-y-0.5">
-                            {groupByHost ? (
-                                (() => {
-                                    const tabsByHost = new Map();
-                                    tabs.forEach(tab => {
-                                        let host = 'Other';
-                                        try {
-                                            if (tab.url) {
-                                                const url = new URL(tab.url);
-                                                if (url.protocol.startsWith('http')) {
-                                                    host = url.hostname.replace(/^www\./, '');
-                                                }
+                        {groupByHost ? (
+                            (() => {
+                                const tabsByHost = new Map();
+                                tabs.forEach(tab => {
+                                    let host = 'Other';
+                                    try {
+                                        if (tab.url) {
+                                            const url = new URL(tab.url);
+                                            if (url.protocol.startsWith('http')) {
+                                                host = url.hostname.replace(/^www\./, '');
                                             }
-                                        } catch (e) {
-                                            // Invalid URL, keep as Other
                                         }
-                                        if (!tabsByHost.has(host)) {
-                                            tabsByHost.set(host, []);
-                                        }
-                                        tabsByHost.get(host).push(tab);
-                                    });
+                                    } catch (e) {
+                                        // Invalid URL, keep as Other
+                                    }
+                                    if (!tabsByHost.has(host)) {
+                                        tabsByHost.set(host, []);
+                                    }
+                                    tabsByHost.get(host).push(tab);
+                                });
 
-                                    return Array.from(tabsByHost.entries()).map(([host, hostTabs]) => (
-                                        <div key={host} className="mb-2 last:mb-0">
-                                            {host !== 'Other' && (
-                                                <div className="px-2 py-1 text-[10px] font-bold text-arc-muted uppercase tracking-wider opacity-50">
-                                                    {host}
-                                                </div>
-                                            )}
-                                            <div className="space-y-0.5">
-                                                {hostTabs.map(tab => (
-                                                    <div key={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
-                                                        <TabItem
-                                                            tab={tab}
-                                                            isActive={tab.id === activeTabId}
-                                                            onClick={() => onTabClick(tab)}
-                                                            onClose={onClose}
-                                                        />
-                                                    </div>
-                                                ))}
+                                return Array.from(tabsByHost.entries()).map(([host, hostTabs]) => (
+                                    <div key={host} className="mb-2 last:mb-0">
+                                        {host !== 'Other' && (
+                                            <div className="px-2 py-1 text-[10px] font-bold text-arc-muted uppercase tracking-wider opacity-50">
+                                                {host}
                                             </div>
+                                        )}
+                                        <div className="space-y-0.5">
+                                            {hostTabs.map(tab => (
+                                                <div key={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
+                                                    <TabItem
+                                                        tab={tab}
+                                                        isActive={tab.id === activeTabId}
+                                                        onClick={() => onTabClick(tab)}
+                                                        onClose={onClose}
+                                                    />
+                                                </div>
+                                            ))}
                                         </div>
-                                    ));
-                                })()
-                            ) : (
-                                tabs.map(tab => (
-                                    <div key={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
-                                        <TabItem
-                                            tab={tab}
-                                            isActive={tab.id === activeTabId}
-                                            onClick={() => onTabClick(tab)}
-                                            onClose={onClose}
-                                        />
                                     </div>
-                                ))
-                            )}
-                        </div>
+                                ));
+                            })()
+                        ) : (
+                            tabs.map(tab => (
+                                <div key={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
+                                    <TabItem
+                                        tab={tab}
+                                        isActive={tab.id === activeTabId}
+                                        onClick={() => onTabClick(tab)}
+                                        onClose={onClose}
+                                    />
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             )}
