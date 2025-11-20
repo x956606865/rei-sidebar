@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import TabGroup from './TabGroup';
 import PinnedSection from './PinnedSection';
 import ContextMenu from './ContextMenu';
@@ -24,6 +24,21 @@ const Sidebar = () => {
     const [subgroupTarget, setSubgroupTarget] = useState(null);
     const listRef = useRef(null);
     const [groupModal, setGroupModal] = useState(null);
+    const [stickyGroup, setStickyGroup] = useState(null);
+    const groupHeaderRefs = useRef(new Map());
+    const groupMetaRef = useRef(new Map());
+
+    const colorClassMap = {
+        grey: 'bg-gray-500',
+        blue: 'bg-blue-500',
+        red: 'bg-red-500',
+        yellow: 'bg-yellow-500',
+        green: 'bg-green-500',
+        pink: 'bg-pink-500',
+        purple: 'bg-purple-500',
+        cyan: 'bg-cyan-500',
+        orange: 'bg-orange-500',
+    };
 
 
 
@@ -182,6 +197,125 @@ const Sidebar = () => {
         ? tabs.filter(t => t.groupId === subgroupModalGroup.id && t.subgroup).map(t => t.subgroup)
         : [];
 
+    const registerHeaderRef = (groupId, el) => {
+        if (!groupHeaderRefs.current) return;
+        if (el) {
+            groupHeaderRefs.current.set(groupId, el);
+        } else {
+            groupHeaderRefs.current.delete(groupId);
+        }
+    };
+
+    const itemsToRender = useMemo(() => {
+        const groupedTabs = new Map();
+        const inboxTabs = [];
+
+        unpinnedTabs.forEach(tab => {
+            if (tab.groupId && tab.groupId !== -1) {
+                if (!groupedTabs.has(tab.groupId)) {
+                    groupedTabs.set(tab.groupId, []);
+                }
+                groupedTabs.get(tab.groupId).push(tab);
+            } else {
+                inboxTabs.push(tab);
+            }
+        });
+
+        const items = [];
+        const processedGroupIds = new Set();
+
+        if (inboxTabs.length > 0) {
+            items.push({
+                type: 'inbox',
+                group: {
+                    id: 'inbox',
+                    title: 'Inbox',
+                    color: 'grey',
+                    collapsed: isInboxCollapsed
+                },
+                tabs: inboxTabs
+            });
+        }
+
+        unpinnedTabs.forEach(tab => {
+            if (tab.groupId && tab.groupId !== -1 && !processedGroupIds.has(tab.groupId)) {
+                processedGroupIds.add(tab.groupId);
+                const group = groups.find(g => g.id === tab.groupId);
+                if (group) {
+                    items.push({
+                        type: 'group',
+                        group,
+                        tabs: groupedTabs.get(tab.groupId) || []
+                    });
+                }
+            }
+        });
+
+        return items;
+    }, [unpinnedTabs, groups, isInboxCollapsed]);
+
+    useEffect(() => {
+        const meta = new Map();
+        itemsToRender.forEach(item => {
+            meta.set(item.group.id, { ...item.group, type: item.type });
+        });
+        groupMetaRef.current = meta;
+    }, [itemsToRender]);
+
+    useEffect(() => {
+        const container = listRef.current;
+        if (!container) return;
+
+        const updateStickyGroup = () => {
+            const containerRect = container.getBoundingClientRect();
+            const candidates = [];
+
+            groupHeaderRefs.current.forEach((el, groupId) => {
+                const meta = groupMetaRef.current.get(groupId);
+                if (!el || !meta) return;
+                if (meta.collapsed) return;
+
+                const top = el.getBoundingClientRect().top - containerRect.top;
+                candidates.push({ groupId, top, meta });
+            });
+
+            if (candidates.length === 0) {
+                setStickyGroup(null);
+                return;
+            }
+
+            const above = candidates.filter(c => c.top < 0).sort((a, b) => b.top - a.top);
+            const target = above[0];
+
+            if (!target) {
+                setStickyGroup(null);
+                return;
+            }
+
+            setStickyGroup({
+                id: target.groupId,
+                title: target.meta.title,
+                color: target.meta.color,
+                type: target.meta.type,
+                collapsed: target.meta.collapsed
+            });
+        };
+
+        container.addEventListener('scroll', updateStickyGroup, { passive: true });
+        updateStickyGroup();
+
+        return () => container.removeEventListener('scroll', updateStickyGroup);
+    }, [itemsToRender]);
+
+    const handleStickyToggle = () => {
+        if (!stickyGroup) return;
+        if (stickyGroup.type === 'inbox') {
+            setIsInboxCollapsed(prev => !prev);
+        } else {
+            toggleGroupCollapse(stickyGroup.id);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-arc-bg text-arc-text select-none font-sans relative">
             {/* Pinned Tabs */}
@@ -195,105 +329,54 @@ const Sidebar = () => {
             {pinnedTabs.length > 0 && <div className="mx-3 my-1 border-b border-white/5" />}
 
             {/* Tab List */}
-            <div className="flex-1 overflow-y-auto px-2 space-y-0.5" ref={listRef}>
-                {/* Render groups and ungrouped tabs */}
-                {(() => {
-                    const groupedTabs = new Map();
-                    const ungroupedTabs = [];
+            <div className="flex-1 overflow-y-auto px-2 space-y-0.5 relative" ref={listRef}>
+                {stickyGroup && (
+                    <div
+                        className="sticky top-0 z-20 -mx-2 px-4 py-2 flex items-center gap-2 bg-arc-bg border-b border-white/5 cursor-pointer"
+                        onClick={handleStickyToggle}
+                    >
+                        <div className={`w-2 h-2 rounded-full ${colorClassMap[stickyGroup.color] || 'bg-gray-500'} shadow-sm`} />
+                        <span className="text-xs font-semibold uppercase tracking-wide text-arc-text flex-1 truncate">
+                            {stickyGroup.type === 'inbox' ? 'Inbox' : (stickyGroup.title || 'Untitled Group')}
+                        </span>
+                        <span className="text-arc-muted text-xs font-medium">{stickyGroup.type === 'inbox' ? (stickyGroup.collapsed ? '展开' : '收起') : '收起'}</span>
+                    </div>
+                )}
 
-                    // Separate tabs into groups and ungrouped
-                    unpinnedTabs.forEach(tab => {
-                        if (tab.groupId && tab.groupId !== -1) {
-                            if (!groupedTabs.has(tab.groupId)) {
-                                groupedTabs.set(tab.groupId, []);
-                            }
-                            groupedTabs.get(tab.groupId).push(tab);
-                        } else {
-                            ungroupedTabs.push(tab);
-                        }
-                    });
-
-                    // We need to render groups and ungrouped tabs in some order.
-                    // Chrome usually mixes them based on index.
-                    // For simplicity, let's render groups first (sorted by something? or just iterate groups)
-                    // then ungrouped tabs? Or try to respect index?
-                    //
-                    // If we want to respect the visual order in Chrome, we should iterate through `tabs` 
-                    // and if we encounter a tab that belongs to a group we haven't rendered yet, render the whole group.
-                    // But `unpinnedTabs` is already filtered.
-
-                    // Let's iterate through `groups` to render them, and then `ungroupedTabs`.
-                    // But wait, what if a group is in the middle of ungrouped tabs?
-                    // For a sidebar, it's often cleaner to have groups at top or mixed.
-                    // Let's try to respect the order of the first tab in the group.
-
-                    const itemsToRender = [];
-                    const processedGroupIds = new Set();
-
-                    // 1. Render Inbox (ungrouped tabs)
-                    if (ungroupedTabs.length > 0) {
-                        itemsToRender.push({
-                            type: 'inbox',
-                            group: {
-                                id: 'inbox',
-                                title: 'Inbox',
-                                color: 'grey', // Default color
-                                collapsed: isInboxCollapsed
-                            },
-                            tabs: ungroupedTabs
-                        });
+                {itemsToRender.map((item) => {
+                    if (item.type === 'inbox') {
+                        return (
+                            <TabGroup
+                                key="inbox-group"
+                                group={item.group}
+                                tabs={item.tabs}
+                                activeTabId={activeTabId}
+                                onTabClick={switchToTab}
+                                onClose={removeTab}
+                                onToggleCollapse={() => setIsInboxCollapsed(!isInboxCollapsed)}
+                                onContextMenu={handleContextMenu}
+                                groupByHost={true}
+                                registerHeaderRef={registerHeaderRef}
+                            />
+                        );
+                    } else if (item.type === 'group') {
+                        return (
+                            <TabGroup
+                                key={`group-${item.group.id}`}
+                                group={item.group}
+                                tabs={item.tabs}
+                                activeTabId={activeTabId}
+                                onTabClick={switchToTab}
+                                onClose={closeTab}
+                                onToggleCollapse={toggleGroupCollapse}
+                                onContextMenu={handleContextMenu}
+                                groupBySubgroup={true}
+                                registerHeaderRef={registerHeaderRef}
+                            />
+                        );
                     }
-
-                    // 2. Render Groups
-                    unpinnedTabs.forEach(tab => {
-                        if (tab.groupId && tab.groupId !== -1) {
-                            if (!processedGroupIds.has(tab.groupId)) {
-                                processedGroupIds.add(tab.groupId);
-                                const group = groups.find(g => g.id === tab.groupId);
-                                if (group) {
-                                    itemsToRender.push({
-                                        type: 'group',
-                                        group,
-                                        tabs: groupedTabs.get(tab.groupId)
-                                    });
-                                }
-                            }
-                        }
-                    });
-
-                    return itemsToRender.map((item) => {
-                        if (item.type === 'inbox') {
-                            return (
-                                <TabGroup
-                                    key="inbox-group"
-                                    group={item.group}
-                                    tabs={item.tabs}
-                                    activeTabId={activeTabId}
-                                    onTabClick={switchToTab}
-                                    onClose={removeTab} // Inbox tabs are removed directly
-                                    onToggleCollapse={() => setIsInboxCollapsed(!isInboxCollapsed)}
-                                    onContextMenu={handleContextMenu}
-                                    groupByHost={true}
-                                />
-                            );
-                        } else if (item.type === 'group') {
-                            return (
-                                <TabGroup
-                                    key={`group-${item.group.id}`}
-                                    group={item.group}
-                                    tabs={item.tabs}
-                                    activeTabId={activeTabId}
-                                    onTabClick={switchToTab}
-                                    onClose={closeTab} // Regular group tabs are ghosted
-                                    onToggleCollapse={toggleGroupCollapse}
-                                    onContextMenu={handleContextMenu}
-                                    groupBySubgroup={true}
-                                />
-                            );
-                        }
-                        return null;
-                    });
-                })()}
+                    return null;
+                })}
             </div>
 
             {/* Footer Controls */}

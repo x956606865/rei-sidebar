@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import TabItem from './TabItem';
 
-const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleCollapse, onContextMenu, groupByHost = false, groupBySubgroup = false }) => {
+const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleCollapse, onContextMenu, groupByHost = false, groupBySubgroup = false, registerHeaderRef }) => {
     const { id, title, color, collapsed } = group;
 
     // Map Chrome group colors to CSS colors (tailwind classes or hex)
@@ -26,6 +26,7 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
             <div
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-arc-hover cursor-pointer select-none group transition-all duration-200"
                 onClick={() => onToggleCollapse(id)}
+                ref={el => registerHeaderRef?.(id, el)}
             >
                 <div className="text-arc-muted group-hover:text-arc-text transition-colors opacity-70 group-hover:opacity-100">
                     {collapsed ? <ChevronRight size={10} strokeWidth={3} /> : <ChevronDown size={10} strokeWidth={3} />}
