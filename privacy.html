@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rei Sidebar Privacy Policy</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { max-width: 760px; margin: 2.5rem auto; padding: 0 1.25rem; line-height: 1.6; font-family: "Inter", system-ui, -apple-system, sans-serif; }
+    h1, h2 { line-height: 1.3; }
+    h1 { margin-bottom: 0.5rem; }
+    h2 { margin-top: 1.75rem; margin-bottom: 0.35rem; }
+    ul { padding-left: 1.2rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+</head>
+<body>
+  <h1>Rei Sidebar Privacy Policy</h1>
+  <p>Last updated: November 20, 2025</p>
+
+  <h2>Overview</h2>
+  <p>Rei Sidebar is a Chrome extension that provides an Arc-style sidebar for managing tabs, tab groups, pinned tabs, and related settings. We designed the extension to work entirely on your device without sending browsing data to external servers.</p>
+
+  <h2>Data We Collect</h2>
+  <ul>
+    <li><strong>No personal data is collected or transmitted</strong> by the extension.</li>
+    <li>Tab titles, URLs, favicons, group metadata, pin states, collapse states, and theme preference are stored locally inside the browser.</li>
+  </ul>
+
+  <h2>Storage and Retention</h2>
+  <p>All extension state is saved in <code>chrome.storage.local</code> on your device. Data stays there until you remove the extension, clear the extension data, or explicitly clear ghost tabs within the UI.</p>
+
+  <h2>Permissions Rationale</h2>
+  <ul>
+    <li><code>tabs</code> &amp; <code>activeTab</code>: Read current tabs to display them and activate or close tabs you select.</li>
+    <li><code>tabGroups</code>: Read and toggle Chrome tab groups so the sidebar stays in sync.</li>
+    <li><code>sidePanel</code>: Render the UI in Chrome's side panel.</li>
+    <li><code>storage</code>: Persist your sidebar state (groups, pin states, theme) locally.</li>
+  </ul>
+
+  <h2>Third-Party Sharing</h2>
+  <p>The extension does not send data to or share data with any third parties.</p>
+
+  <h2>Children's Privacy</h2>
+  <p>The extension is intended for general audiences and does not target children. We do not knowingly collect information from children.</p>
+
+  <h2>Changes to This Policy</h2>
+  <p>If this policy changes, we will update the “Last updated” date and include the revised copy in the published package.</p>
+
+  <h2>Contact</h2>
+  <p>Questions or concerns? Email <a href="mailto:support@example.com">support@example.com</a>.</p>
+</body>
+</html>
