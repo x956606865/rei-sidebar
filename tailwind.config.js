@@ -4,15 +4,16 @@ export default {
         "./index.html",
         "./src/**/*.{js,ts,jsx,tsx}",
     ],
+    darkMode: 'class',
     theme: {
         extend: {
             colors: {
                 arc: {
-                    bg: '#2B2D31', // Dark grey background similar to Arc
-                    hover: '#3F4148', // Lighter grey for hover
-                    active: '#4E5058', // Active tab background
-                    text: '#FFFFFF',
-                    muted: '#949BA4',
+                    bg: 'var(--arc-bg)',
+                    hover: 'var(--arc-hover)',
+                    active: 'var(--arc-active)',
+                    text: 'var(--arc-text)',
+                    muted: 'var(--arc-muted)',
                 }
             }
         },

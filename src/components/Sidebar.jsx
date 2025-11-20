@@ -5,10 +5,12 @@ import PinnedSection from './PinnedSection';
 import ContextMenu from './ContextMenu';
 import ConfirmationModal from './ConfirmationModal';
 import { useTabs } from '../hooks/useTabs';
-import { Plus, Settings, Trash2, Pin, PinOff, X } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon } from 'lucide-react';
 
 const Sidebar = () => {
     const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse } = useTabs();
+    const { theme, toggleTheme } = useTheme();
     const [contextMenu, setContextMenu] = useState(null);
     const [tabToRemove, setTabToRemove] = useState(null);
     const [isInboxCollapsed, setIsInboxCollapsed] = useState(false);
@@ -178,6 +180,13 @@ const Sidebar = () => {
                 </button>
 
                 <div className="flex gap-1">
+                    <button
+                        className="p-2 rounded-md hover:bg-arc-hover text-arc-muted hover:text-white transition-colors"
+                        onClick={toggleTheme}
+                        title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                    >
+                        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                    </button>
                     <button
                         className="p-2 rounded-md hover:bg-arc-hover text-arc-muted hover:text-white transition-colors"
                         onClick={clearGhosts}
