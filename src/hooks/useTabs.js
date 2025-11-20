@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 
 export const useTabs = () => {
   const [tabs, setTabs] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [activeTabId, setActiveTabId] = useState(null);
   const isInternalUpdate = useRef(false);
 
@@ -19,12 +20,34 @@ export const useTabs = () => {
         return;
       }
 
-      // Load persisted tabs
-      const storage = await chrome.storage.local.get(['savedTabs']);
+      // Load persisted tabs and groups
+      const storage = await chrome.storage.local.get(['savedTabs', 'savedGroups']);
       let savedTabs = storage.savedTabs || [];
+      let savedGroups = storage.savedGroups || [];
 
-      // Get current actual tabs
+      // Get current actual tabs and groups
       const currentTabs = await chrome.tabs.query({ currentWindow: true });
+      let currentGroups = [];
+      if (chrome.tabGroups) {
+        currentGroups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+      } else {
+        // Fallback: try to get groups from background script
+        try {
+          const response = await chrome.runtime.sendMessage({ type: 'GET_GROUPS' });
+          if (response && response.groups) {
+            currentGroups = response.groups;
+          }
+        } catch (e) {
+          console.error('Failed to get groups from background:', e);
+        }
+      }
+
+      console.log('Init Tabs Debug:', {
+        hasTabGroupsApi: !!chrome.tabGroups,
+        currentGroups,
+        currentTabsCount: currentTabs.length,
+        tabsWithGroups: currentTabs.filter(t => t.groupId > -1).length
+      });
 
       // Merge logic:
       // 1. If we have saved tabs, try to match them with current tabs by ID or URL
@@ -51,7 +74,41 @@ export const useTabs = () => {
         newTabsState.push({ ...tab, isGhost: false });
       }
 
+      // Process groups
+      const newGroupsState = [];
+      const currentGroupsMap = new Map(currentGroups.map(g => [g.id, g]));
+
+      // Process saved groups to keep local state like 'collapsed' if we want to override chrome's or keep ghost groups
+      // For now, we primarily sync with Chrome's groups, but we might want to persist 'collapsed' state if we want it independent of Chrome
+      // or if we want to support ghost groups.
+      // Let's sync with Chrome groups but preserve our local 'collapsed' state if it exists in savedGroups.
+
+      const savedGroupsMap = new Map(savedGroups.map(g => [g.id, g]));
+
+      for (const currentGroup of currentGroups) {
+        const savedGroup = savedGroupsMap.get(currentGroup.id);
+        newGroupsState.push({
+          ...currentGroup,
+          collapsed: savedGroup ? savedGroup.collapsed : currentGroup.collapsed // Prefer saved collapsed state if we want to enforce it, or just use current. 
+          // Actually, Chrome syncs collapsed state. Let's just use Chrome's state for now, 
+          // unless we want to support groups that are closed in Chrome but kept here (ghost groups).
+          // For ghost groups support, we need to check savedGroups.
+        });
+        if (savedGroup) savedGroupsMap.delete(currentGroup.id);
+      }
+
+      // Add ghost groups (groups that are in savedGroups but not in currentGroups, and have ghost tabs)
+      // We need to know if a ghost group has ghost tabs to decide whether to keep it.
+      // For simplicity in this step, let's just keep all saved groups that are not in current groups as ghost groups?
+      // Or better: filter later. Let's add them for now.
+      for (const savedGroup of savedGroupsMap.values()) {
+        // Only keep ghost group if it has ghost tabs associated with it? 
+        // We'll filter this when rendering or cleaning up. For now, add it.
+        newGroupsState.push({ ...savedGroup, isGhost: true });
+      }
+
       setTabs(newTabsState);
+      setGroups(newGroupsState);
 
       const activeTab = currentTabs.find(t => t.active);
       if (activeTab) setActiveTabId(activeTab.id);
@@ -60,20 +117,34 @@ export const useTabs = () => {
     initTabs();
   }, []);
 
-  // Save tabs to storage whenever they change
+  // Save tabs and groups to storage whenever they change
   useEffect(() => {
-    if (typeof chrome !== 'undefined' && chrome.storage && tabs.length > 0) {
-      const tabsToSave = tabs.map(t => ({
-        id: t.id,
-        title: t.title,
-        url: t.url,
-        favIconUrl: t.favIconUrl,
-        isGhost: t.isGhost,
-        isPinned: t.isPinned
-      }));
-      chrome.storage.local.set({ savedTabs: tabsToSave });
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      if (tabs.length > 0) {
+        const tabsToSave = tabs.map(t => ({
+          id: t.id,
+          title: t.title,
+          url: t.url,
+          favIconUrl: t.favIconUrl,
+          isGhost: t.isGhost,
+          isPinned: t.isPinned,
+          groupId: t.groupId
+        }));
+        chrome.storage.local.set({ savedTabs: tabsToSave });
+      }
+
+      if (groups.length > 0) {
+        const groupsToSave = groups.map(g => ({
+          id: g.id,
+          title: g.title,
+          color: g.color,
+          collapsed: g.collapsed,
+          isGhost: g.isGhost
+        }));
+        chrome.storage.local.set({ savedGroups: groupsToSave });
+      }
     }
-  }, [tabs]);
+  }, [tabs, groups]);
 
   // Listen for tab updates
   useEffect(() => {
@@ -98,16 +169,43 @@ export const useTabs = () => {
       setActiveTabId(activeInfo.tabId);
     };
 
+    const handleGroupCreated = (group) => {
+      setGroups(prev => [...prev, { ...group, isGhost: false }]);
+    };
+
+    const handleGroupUpdated = (group) => {
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, ...group, isGhost: false } : g));
+    };
+
+    const handleGroupRemoved = (groupId) => {
+      // Mark as ghost instead of removing, if we want to support ghost groups
+      // But we should only keep it if it has ghost tabs. 
+      // For now, let's mark as ghost.
+      setGroups(prev => prev.map(g => g.id === groupId ? { ...g, isGhost: true } : g));
+    };
+
     chrome.tabs.onCreated.addListener(handleCreated);
     chrome.tabs.onUpdated.addListener(handleUpdated);
     chrome.tabs.onRemoved.addListener(handleRemoved);
     chrome.tabs.onActivated.addListener(handleActivated);
+
+    if (chrome.tabGroups) {
+      chrome.tabGroups.onCreated.addListener(handleGroupCreated);
+      chrome.tabGroups.onUpdated.addListener(handleGroupUpdated);
+      chrome.tabGroups.onRemoved.addListener(handleGroupRemoved);
+    }
 
     return () => {
       chrome.tabs.onCreated.removeListener(handleCreated);
       chrome.tabs.onUpdated.removeListener(handleUpdated);
       chrome.tabs.onRemoved.removeListener(handleRemoved);
       chrome.tabs.onActivated.removeListener(handleActivated);
+
+      if (chrome.tabGroups) {
+        chrome.tabGroups.onCreated.removeListener(handleGroupCreated);
+        chrome.tabGroups.onUpdated.removeListener(handleGroupUpdated);
+        chrome.tabGroups.onRemoved.removeListener(handleGroupRemoved);
+      }
     };
   }, []);
 
@@ -162,12 +260,34 @@ export const useTabs = () => {
     }));
   };
 
+  const toggleGroupCollapse = async (groupId) => {
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+
+    const newCollapsedState = !group.collapsed;
+
+    // Update local state
+    setGroups(prev => prev.map(g => g.id === groupId ? { ...g, collapsed: newCollapsedState } : g));
+
+    // Sync with Chrome if it's not a ghost group
+    if (!group.isGhost && typeof chrome !== 'undefined' && chrome.tabGroups) {
+      try {
+        await chrome.tabGroups.update(groupId, { collapsed: newCollapsedState });
+      } catch (e) {
+        console.error("Failed to update group collapse state", e);
+      }
+    }
+  };
+
   return {
     tabs,
     activeTabId,
     switchToTab,
     closeTab,
     clearGhosts,
-    togglePin
+    clearGhosts,
+    togglePin,
+    groups,
+    toggleGroupCollapse
   };
 };

@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import TabItem from './TabItem';
+import TabGroup from './TabGroup';
 import PinnedSection from './PinnedSection';
 import ContextMenu from './ContextMenu';
 import { useTabs } from '../hooks/useTabs';
 import { Plus, Settings, Trash2, Pin, PinOff } from 'lucide-react';
 
 const Sidebar = () => {
-    const { tabs, activeTabId, switchToTab, closeTab, clearGhosts, togglePin } = useTabs();
+    const { tabs, groups, activeTabId, switchToTab, closeTab, clearGhosts, togglePin, toggleGroupCollapse } = useTabs();
     const [contextMenu, setContextMenu] = useState(null);
+
+
 
     const handleNewTab = () => {
         if (typeof chrome !== 'undefined' && chrome.tabs) {
@@ -50,16 +53,89 @@ const Sidebar = () => {
 
             {/* Tab List */}
             <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
-                {unpinnedTabs.map(tab => (
-                    <div key={tab.id} onContextMenu={(e) => handleContextMenu(e, tab)}>
-                        <TabItem
-                            tab={tab}
-                            isActive={tab.id === activeTabId}
-                            onClick={() => switchToTab(tab)}
-                            onClose={closeTab}
-                        />
-                    </div>
-                ))}
+                {/* Render groups and ungrouped tabs */}
+                {(() => {
+                    const groupedTabs = new Map();
+                    const ungroupedTabs = [];
+
+                    // Separate tabs into groups and ungrouped
+                    unpinnedTabs.forEach(tab => {
+                        if (tab.groupId && tab.groupId !== -1) {
+                            if (!groupedTabs.has(tab.groupId)) {
+                                groupedTabs.set(tab.groupId, []);
+                            }
+                            groupedTabs.get(tab.groupId).push(tab);
+                        } else {
+                            ungroupedTabs.push(tab);
+                        }
+                    });
+
+                    // We need to render groups and ungrouped tabs in some order.
+                    // Chrome usually mixes them based on index.
+                    // For simplicity, let's render groups first (sorted by something? or just iterate groups)
+                    // then ungrouped tabs? Or try to respect index?
+                    //
+                    // If we want to respect the visual order in Chrome, we should iterate through `tabs` 
+                    // and if we encounter a tab that belongs to a group we haven't rendered yet, render the whole group.
+                    // But `unpinnedTabs` is already filtered.
+
+                    // Let's iterate through `groups` to render them, and then `ungroupedTabs`.
+                    // But wait, what if a group is in the middle of ungrouped tabs?
+                    // For a sidebar, it's often cleaner to have groups at top or mixed.
+                    // Let's try to respect the order of the first tab in the group.
+
+                    const itemsToRender = [];
+                    const processedGroupIds = new Set();
+
+                    unpinnedTabs.forEach(tab => {
+                        if (tab.groupId && tab.groupId !== -1) {
+                            if (!processedGroupIds.has(tab.groupId)) {
+                                processedGroupIds.add(tab.groupId);
+                                const group = groups.find(g => g.id === tab.groupId);
+                                if (group) {
+                                    itemsToRender.push({
+                                        type: 'group',
+                                        group,
+                                        tabs: groupedTabs.get(tab.groupId)
+                                    });
+                                } else {
+                                    // Group not found (maybe sync issue), render as item
+                                    itemsToRender.push({ type: 'tab', tab });
+                                }
+                            }
+                        } else {
+                            itemsToRender.push({ type: 'tab', tab });
+                        }
+                    });
+
+                    return itemsToRender.map((item, index) => {
+                        if (item.type === 'group') {
+                            return (
+                                <TabGroup
+                                    key={`group-${item.group.id}`}
+                                    group={item.group}
+                                    tabs={item.tabs}
+                                    activeTabId={activeTabId}
+                                    onTabClick={switchToTab}
+                                    onClose={closeTab}
+                                    onToggleCollapse={toggleGroupCollapse}
+                                    onContextMenu={handleContextMenu}
+                                />
+                            );
+                        } else {
+                            return (
+                                <div key={item.tab.id} onContextMenu={(e) => handleContextMenu(e, item.tab)}>
+                                    <TabItem
+                                        tab={item.tab}
+                                        isActive={item.tab.id === activeTabId}
+                                        onClick={() => switchToTab(item.tab)}
+                                        onClose={closeTab}
+                                    />
+                                </div>
+                            );
+                        }
+                    });
+                })()}
             </div>
 
             {/* Footer Controls */}
