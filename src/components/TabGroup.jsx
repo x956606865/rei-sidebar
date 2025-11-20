@@ -73,7 +73,7 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                                         )}
                                         <div className="space-y-0.5">
                                             {hostTabs.map(tab => (
-                                                <div key={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
+                                                <div key={tab.id} data-tab-id={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
                                                     <TabItem
                                                         tab={tab}
                                                         isActive={tab.id === activeTabId}
@@ -113,7 +113,7 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                                             </div>
                                             <div className="space-y-0.5">
                                                 {subgroupTabs.map(tab => (
-                                                    <div key={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
+                                                    <div key={tab.id} data-tab-id={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
                                                         <TabItem
                                                             tab={tab}
                                                             isActive={tab.id === activeTabId}
@@ -129,7 +129,7 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                             })()
                         ) : (
                             tabs.map(tab => (
-                                <div key={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
+                                <div key={tab.id} data-tab-id={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
                                     <TabItem
                                         tab={tab}
                                         isActive={tab.id === activeTabId}

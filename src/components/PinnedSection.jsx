@@ -8,6 +8,7 @@ const PinnedSection = ({ tabs, activeTabId, onTabClick, onContextMenu }) => {
             {tabs.map(tab => (
                 <div
                     key={tab.id}
+                    data-pinned-tab-id={tab.id}
                     className={`
             aspect-square rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200
             ${tab.id === activeTabId ? 'bg-arc-active text-arc-text shadow-sm' : 'bg-arc-hover text-arc-muted hover:bg-arc-active hover:text-arc-text'}

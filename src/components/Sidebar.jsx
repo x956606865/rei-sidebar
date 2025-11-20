@@ -7,7 +7,7 @@ import SettingsModal from './SettingsModal';
 import SubgroupModal from './SubgroupModal';
 import { useTabs } from '../hooks/useTabs';
 import { useTheme } from '../context/ThemeContext';
-import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon, FolderPlus } from 'lucide-react';
+import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon, FolderPlus, LocateFixed } from 'lucide-react';
 
 const Sidebar = () => {
     const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse, getExportPayload, importData, setTabSubgroup } = useTabs();
@@ -21,6 +21,7 @@ const Sidebar = () => {
     const [settingsError, setSettingsError] = useState('');
     const fileInputRef = useRef(null);
     const [subgroupTarget, setSubgroupTarget] = useState(null);
+    const listRef = useRef(null);
 
 
 
@@ -134,6 +135,26 @@ const Sidebar = () => {
         }
     };
 
+    const handleScrollToActive = () => {
+        if (!activeTabId) return;
+
+        const container = listRef.current;
+        const targetInList = container?.querySelector(`[data-tab-id="${activeTabId}"]`);
+        const targetPinned = document.querySelector(`[data-pinned-tab-id="${activeTabId}"]`);
+        const target = targetInList || targetPinned;
+
+        if (target && container) {
+            const rect = target.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const isVisible = rect.top >= containerRect.top && rect.bottom <= containerRect.bottom;
+            if (!isVisible) {
+                target.scrollIntoView({ block: 'center', behavior: 'smooth', inline: 'nearest' });
+            }
+        } else if (targetPinned) {
+            targetPinned.scrollIntoView({ block: 'center', behavior: 'smooth', inline: 'nearest' });
+        }
+    };
+
     const pinnedTabs = tabs.filter(t => t.isPinned);
     const unpinnedTabs = tabs.filter(t => !t.isPinned);
 
@@ -144,7 +165,7 @@ const Sidebar = () => {
         : [];
 
     return (
-        <div className="flex flex-col h-full bg-arc-bg text-arc-text select-none font-sans">
+        <div className="flex flex-col h-full bg-arc-bg text-arc-text select-none font-sans relative">
             {/* Header / Search Bar Placeholder */}
             <div className="p-3">
                 <div className="bg-white/5 hover:bg-white/10 rounded-lg p-2 text-sm text-arc-muted flex items-center gap-2 cursor-text transition-colors border border-transparent hover:border-white/5 shadow-sm">
@@ -163,7 +184,7 @@ const Sidebar = () => {
             {pinnedTabs.length > 0 && <div className="mx-3 my-1 border-b border-white/5" />}
 
             {/* Tab List */}
-            <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
+            <div className="flex-1 overflow-y-auto px-2 space-y-0.5" ref={listRef}>
                 {/* Render groups and ungrouped tabs */}
                 {(() => {
                     const groupedTabs = new Map();
@@ -302,6 +323,14 @@ const Sidebar = () => {
                     </button>
                 </div>
             </div>
+
+            <button
+                className="absolute right-4 bottom-16 p-2 rounded-full bg-arc-hover text-arc-muted hover:text-arc-text hover:bg-arc-active shadow-lg border border-black/5 dark:border-white/10 transition-colors"
+                title="定位到当前标签"
+                onClick={handleScrollToActive}
+            >
+                <LocateFixed size={14} />
+            </button>
 
             {/* Context Menu */}
             {contextMenu && (
