@@ -425,6 +425,52 @@ export const useTabs = () => {
     };
   };
 
+  const changeTabGroup = async (tabId, targetGroupId, newGroupTitle) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab) return;
+
+    let resolvedGroupId = targetGroupId;
+    let createdGroup = null;
+
+    if (targetGroupId === -1 || targetGroupId === 'inbox' || targetGroupId === null || targetGroupId === undefined) {
+      resolvedGroupId = -1;
+    }
+
+    if ((targetGroupId === 'new' || (!targetGroupId && newGroupTitle)) && newGroupTitle) {
+      createdGroup = {
+        id: generateLocalId('group'),
+        title: newGroupTitle,
+        color: 'grey',
+        collapsed: false,
+        isGhost: true
+      };
+      resolvedGroupId = createdGroup.id;
+      setGroups(prev => [...prev, createdGroup]);
+    }
+
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, groupId: resolvedGroupId } : t));
+
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+      try {
+        if (resolvedGroupId === -1) {
+          await chrome.tabs.ungroup(tabId);
+        } else if (createdGroup && chrome.tabs.group) {
+          const newId = await chrome.tabs.group({ tabIds: tabId });
+          resolvedGroupId = newId;
+          if (chrome.tabGroups && chrome.tabGroups.update) {
+            await chrome.tabGroups.update(newId, { title: createdGroup.title, color: createdGroup.color });
+          }
+          setGroups(prev => prev.map(g => g.id === createdGroup.id ? { ...g, id: newId, isGhost: false } : g));
+          setTabs(prev => prev.map(t => t.id === tabId ? { ...t, groupId: newId } : t));
+        } else if (chrome.tabs.group) {
+          await chrome.tabs.group({ tabIds: tabId, groupId: resolvedGroupId });
+        }
+      } catch (e) {
+        console.error('Failed to change tab group', e);
+      }
+    }
+  };
+
   const setTabSubgroup = (tabId, subgroupName) => {
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, subgroup: subgroupName || undefined } : t));
   };
@@ -441,6 +487,7 @@ export const useTabs = () => {
     toggleGroupCollapse,
     getExportPayload,
     importData,
-    setTabSubgroup
+    setTabSubgroup,
+    changeTabGroup
   };
 };

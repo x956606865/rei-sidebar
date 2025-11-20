@@ -64,7 +64,13 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                                     tabsByHost.get(host).push(tab);
                                 });
 
-                                return Array.from(tabsByHost.entries()).map(([host, hostTabs]) => (
+                                const sortedEntries = Array.from(tabsByHost.entries()).sort(([a], [b]) => {
+                                    if (a === 'Other') return 1;
+                                    if (b === 'Other') return -1;
+                                    return a.localeCompare(b, 'zh-Hans');
+                                });
+
+                                return sortedEntries.map(([host, hostTabs]) => (
                                     <div key={host} className="mb-2 last:mb-0">
                                         {host !== 'Other' && (
                                             <div className="px-2 py-1 text-xs font-bold text-arc-muted uppercase tracking-wider opacity-50">

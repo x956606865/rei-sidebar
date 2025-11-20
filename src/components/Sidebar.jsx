@@ -5,12 +5,13 @@ import ContextMenu from './ContextMenu';
 import ConfirmationModal from './ConfirmationModal';
 import SettingsModal from './SettingsModal';
 import SubgroupModal from './SubgroupModal';
+import GroupSelectModal from './GroupSelectModal';
 import { useTabs } from '../hooks/useTabs';
 import { useTheme } from '../context/ThemeContext';
-import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon, FolderPlus, LocateFixed } from 'lucide-react';
+import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon, FolderPlus, LocateFixed, Folder, FolderOpen } from 'lucide-react';
 
 const Sidebar = () => {
-    const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse, getExportPayload, importData, setTabSubgroup } = useTabs();
+    const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse, getExportPayload, importData, setTabSubgroup, changeTabGroup } = useTabs();
     const { theme, toggleTheme } = useTheme();
     const [contextMenu, setContextMenu] = useState(null);
     const [tabToRemove, setTabToRemove] = useState(null);
@@ -22,6 +23,7 @@ const Sidebar = () => {
     const fileInputRef = useRef(null);
     const [subgroupTarget, setSubgroupTarget] = useState(null);
     const listRef = useRef(null);
+    const [groupModal, setGroupModal] = useState(null);
 
 
 
@@ -71,6 +73,22 @@ const Sidebar = () => {
             setTabSubgroup(subgroupTarget.tabId, name || undefined);
         }
         setSubgroupTarget(null);
+    };
+
+    const handleOpenGroupModal = (tab, mode) => {
+        setGroupModal({
+            tabId: tab.id,
+            currentGroupId: tab.groupId ?? -1,
+            mode
+        });
+        setContextMenu(null);
+    };
+
+    const handleGroupConfirm = ({ targetGroupId, newGroupName }) => {
+        if (groupModal?.tabId) {
+            changeTabGroup(groupModal.tabId, targetGroupId, newGroupName);
+        }
+        setGroupModal(null);
     };
 
     const handleExport = () => {
@@ -166,13 +184,6 @@ const Sidebar = () => {
 
     return (
         <div className="flex flex-col h-full bg-arc-bg text-arc-text select-none font-sans relative">
-            {/* Header / Search Bar Placeholder */}
-            <div className="p-3">
-                <div className="bg-white/5 hover:bg-white/10 rounded-lg p-2 text-sm text-arc-muted flex items-center gap-2 cursor-text transition-colors border border-transparent hover:border-white/5 shadow-sm">
-                    <span className="opacity-70">URL or search</span>
-                </div>
-            </div>
-
             {/* Pinned Tabs */}
             <PinnedSection
                 tabs={pinnedTabs}
@@ -339,6 +350,16 @@ const Sidebar = () => {
                     y={contextMenu.y}
                     onClose={() => setContextMenu(null)}
                     options={[
+                        ...(contextMenu.tab && (!contextMenu.tab.groupId || contextMenu.tab.groupId === -1) ? [{
+                            label: 'Add to Group',
+                            icon: <FolderPlus size={14} />,
+                            onClick: () => handleOpenGroupModal(contextMenu.tab, 'add')
+                        }] : []),
+                        ...(contextMenu.tab && contextMenu.tab.groupId && contextMenu.tab.groupId !== -1 ? [{
+                            label: 'Move to Group',
+                            icon: <FolderOpen size={14} />,
+                            onClick: () => handleOpenGroupModal(contextMenu.tab, 'move')
+                        }] : []),
                         ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
                             label: 'Add to Subgroup',
                             icon: <FolderPlus size={14} />,
@@ -385,6 +406,15 @@ const Sidebar = () => {
                 initialValue={subgroupModalTab?.subgroup || ''}
                 onConfirm={handleSubgroupConfirm}
                 onClose={() => setSubgroupTarget(null)}
+            />
+
+            <GroupSelectModal
+                isOpen={!!groupModal}
+                mode={groupModal?.mode}
+                groups={groups}
+                currentGroupId={groupModal?.currentGroupId ?? -1}
+                onConfirm={handleGroupConfirm}
+                onClose={() => setGroupModal(null)}
             />
 
             <input
