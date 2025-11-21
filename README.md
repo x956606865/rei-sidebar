@@ -4,7 +4,7 @@
 - 目标：模拟 Arc 浏览器的侧栏体验，集中展示/管理当前窗口的标签页与分组，并保留关闭记录（幽灵标签）。
 - 技术栈：React 18、Tailwind CSS 3、Vite 构建，图标使用 `lucide-react`。
 - 运行环境：优先在 Chrome 扩展上下文使用 `chrome.tabs`、`chrome.tabGroups`、`chrome.storage`；本地开发无扩展 API 时自动回退到内置 mock 标签数据。
-- 空间（Space）：内置“默认空间”，用户可创建多套 Space，将分组归类后按 Space 过滤侧边栏视图。
+- 空间（Space）：内置“默认空间”，用户可创建多套 Space，将分组归类后按 Space 过滤侧边栏视图。Space 以颜色作为唯一标识/名称，同一颜色只能出现一次，最多 4 个（含默认）。
 
 ## 快速开始
 - 安装依赖：`npm install`

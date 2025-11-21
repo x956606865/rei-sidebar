@@ -334,12 +334,15 @@ export const useTabs = () => {
         version: 1,
         exportedAt: new Date().toISOString()
       },
+      spaces,
+      activeSpaceId,
       groups: groups.map(g => ({
         id: g.id,
         title: g.title,
         color: g.color,
         collapsed: !!g.collapsed,
-        isGhost: !!g.isGhost
+        isGhost: !!g.isGhost,
+        spaceId: g.spaceId || 'default'
       })),
       tabs: tabs.map(t => ({
         id: t.id,
@@ -355,8 +358,38 @@ export const useTabs = () => {
   };
 
   const importData = (payload = {}) => {
+    const incomingSpaces = Array.isArray(payload.spaces) ? payload.spaces : [];
     const incomingGroups = Array.isArray(payload.groups) ? payload.groups : [];
     const incomingTabs = Array.isArray(payload.tabs) ? payload.tabs : [];
+
+    // Merge spaces with cap (4 total including default)
+    const normalize = (title = '') => title.trim().toLowerCase();
+    const existingSpaceColors = new Set(spaces.map(s => s.color || 'grey'));
+    const mergedSpaces = [...spaces];
+    const maxSpaces = 4;
+
+    incomingSpaces.forEach(space => {
+      const colorKey = space.color || 'grey';
+      if (mergedSpaces.length >= maxSpaces) return;
+      if (existingSpaceColors.has(colorKey)) return;
+      mergedSpaces.push({
+        id: space.id || generateLocalId('space'),
+        title: space.title || colorKey.charAt(0).toUpperCase() + colorKey.slice(1),
+        color: colorKey
+      });
+      existingSpaceColors.add(colorKey);
+    });
+
+    // Ensure default space exists (blue). If missing and blue already used, still force default.
+    if (!mergedSpaces.some(s => s.id === 'default')) {
+      mergedSpaces.unshift({ id: 'default', title: 'Default', color: 'blue' });
+      existingSpaceColors.add('blue');
+    }
+
+    const spaceIdSet = new Set(mergedSpaces.map(s => s.id));
+    const importedActiveSpaceId = payload.activeSpaceId && spaceIdSet.has(payload.activeSpaceId)
+      ? payload.activeSpaceId
+      : 'default';
 
     const groupKeyToId = new Map(groups.map(g => [normalizeTitle(g.title || ''), g.id]));
     const existingGroupIds = new Set(groups.map(g => String(g.id)));
@@ -372,13 +405,15 @@ export const useTabs = () => {
         newId = generateLocalId('group');
       }
       existingGroupIds.add(String(newId));
+      const fallbackSpaceId = spaceIdSet.has(group.spaceId) ? group.spaceId : 'default';
       groupKeyToId.set(key, newId);
       addedGroups.push({
         id: newId,
         title: group.title || 'Untitled Group',
         color: group.color || 'grey',
         collapsed: !!group.collapsed,
-        isGhost: true
+        isGhost: true,
+        spaceId: fallbackSpaceId
       });
     });
 
@@ -398,7 +433,8 @@ export const useTabs = () => {
       const sourceGroup = incomingGroups.find(g => g.id === tab.groupId);
       const targetGroupKey = sourceGroup ? normalizeTitle(sourceGroup.title || '') : '';
       const targetGroupId = targetGroupKey ? groupKeyToId.get(targetGroupKey) : undefined;
-
+      const targetSpaceId = sourceGroup && spaceIdSet.has(sourceGroup.spaceId) ? sourceGroup.spaceId : 'default';
+      const resolvedGroupId = targetGroupId ?? -1;
       const groupKeyForTab = targetGroupKey || '';
       const key = `${tab.url || ''}:::${groupKeyForTab}`;
       if (existingTabKeys.has(key)) return;
@@ -417,8 +453,9 @@ export const useTabs = () => {
         favIconUrl: tab.favIconUrl,
         isGhost: true,
         isPinned: !!tab.isPinned,
-        groupId: targetGroupId ?? -1,
-        subgroup: tab.subgroup
+        groupId: resolvedGroupId,
+        subgroup: tab.subgroup,
+        spaceId: targetSpaceId
       });
     });
 
@@ -428,6 +465,9 @@ export const useTabs = () => {
     if (addedTabs.length > 0) {
       setTabs(prev => [...prev, ...addedTabs]);
     }
+
+    setSpaces(mergedSpaces.slice(0, maxSpaces));
+    setActiveSpaceId(importedActiveSpaceId);
 
     return {
       addedGroups: addedGroups.length,
@@ -488,13 +528,14 @@ export const useTabs = () => {
   };
 
   const addSpace = (color) => {
-    if (spaces.length >= 4) {
-      return null; // max spaces reached
-    }
+    const targetColor = color || 'grey';
+    if (spaces.length >= 4) return null; // cap including default
+    if (spaces.some(s => (s.color || 'grey') === targetColor)) return null; // color must be unique
+    const title = targetColor.charAt(0).toUpperCase() + targetColor.slice(1);
     const newSpace = {
       id: generateLocalId('space'),
-      title: `Space ${spaces.length + 1}`,
-      color: color || 'grey'
+      title,
+      color: targetColor
     };
     setSpaces(prev => [...prev, newSpace]);
     return newSpace;

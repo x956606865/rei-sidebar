@@ -94,7 +94,7 @@ const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRem
     const handleColorSelect = (color) => {
         const created = onAddSpace(color);
         if (!created) {
-            alert('最多支持 4 个 Space（含默认），请先删除或重用已有 Space。');
+            alert('颜色已存在或已达 4 个 Space 上限，请先删除或更换颜色。');
         }
         setShowColorPicker(false);
     };
