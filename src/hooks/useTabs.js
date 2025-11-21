@@ -40,26 +40,11 @@ export const useTabs = () => {
       let savedSpaces = storage.savedSpaces || [{ id: 'default', title: 'Default', color: 'blue' }];
       let savedActiveSpaceId = storage.activeSpaceId || 'default';
 
-      // Get current actual tabs and groups
+      // Get current actual tabs；groups 由本地独立维护，不再从 Chrome 读取
       const currentTabs = await chrome.tabs.query({ currentWindow: true });
-      let currentGroups = [];
-      if (chrome.tabGroups) {
-        currentGroups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
-      } else {
-        // Fallback: try to get groups from background script
-        try {
-          const response = await chrome.runtime.sendMessage({ type: 'GET_GROUPS' });
-          if (response && response.groups) {
-            currentGroups = response.groups;
-          }
-        } catch (e) {
-          console.error('Failed to get groups from background:', e);
-        }
-      }
 
       console.log('Init Tabs Debug:', {
         hasTabGroupsApi: !!chrome.tabGroups,
-        currentGroups,
         currentTabsCount: currentTabs.length,
         tabsWithGroups: currentTabs.filter(t => t.groupId > -1).length
       });
@@ -74,9 +59,14 @@ export const useTabs = () => {
 
       // Process saved tabs
       for (const savedTab of savedTabs) {
-        if (currentTabsMap.has(savedTab.id)) {
-          // Tab still exists, update it
-          newTabsState.push({ ...savedTab, ...currentTabsMap.get(savedTab.id), isGhost: false });
+        const liveTab = currentTabsMap.get(savedTab.id);
+        if (liveTab) {
+          // Tab still exists, prefer本地分组/子分组/空间信息
+          const merged = { ...savedTab, ...liveTab, isGhost: false };
+          if (savedTab.groupId !== undefined) merged.groupId = savedTab.groupId;
+          if (savedTab.subgroup !== undefined) merged.subgroup = savedTab.subgroup;
+          if (savedTab.spaceId !== undefined) merged.spaceId = savedTab.spaceId;
+          newTabsState.push(merged);
           currentTabsMap.delete(savedTab.id);
         } else {
           // Tab is gone, mark as ghost
@@ -86,42 +76,11 @@ export const useTabs = () => {
 
       // Add remaining new current tabs
       for (const tab of currentTabsMap.values()) {
-        newTabsState.push({ ...tab, isGhost: false });
+        newTabsState.push({ ...tab, isGhost: false, groupId: -1, spaceId: 'default' });
       }
 
       // Process groups
-      const newGroupsState = [];
-      const currentGroupsMap = new Map(currentGroups.map(g => [g.id, g]));
-
-      // Process saved groups to keep local state like 'collapsed' if we want to override chrome's or keep ghost groups
-      // For now, we primarily sync with Chrome's groups, but we might want to persist 'collapsed' state if we want it independent of Chrome
-      // or if we want to support ghost groups.
-      // Let's sync with Chrome groups but preserve our local 'collapsed' state if it exists in savedGroups.
-
-      const savedGroupsMap = new Map(savedGroups.map(g => [g.id, g]));
-
-      for (const currentGroup of currentGroups) {
-        const savedGroup = savedGroupsMap.get(currentGroup.id);
-        newGroupsState.push({
-          ...currentGroup,
-          collapsed: savedGroup ? savedGroup.collapsed : currentGroup.collapsed, // Prefer saved collapsed state if we want to enforce it, or just use current. 
-          spaceId: savedGroup ? (savedGroup.spaceId || 'default') : 'default'
-          // Actually, Chrome syncs collapsed state. Let's just use Chrome's state for now, 
-          // unless we want to support groups that are closed in Chrome but kept here (ghost groups).
-          // For ghost groups support, we need to check savedGroups.
-        });
-        if (savedGroup) savedGroupsMap.delete(currentGroup.id);
-      }
-
-      // Add ghost groups (groups that are in savedGroups but not in currentGroups, and have ghost tabs)
-      // We need to know if a ghost group has ghost tabs to decide whether to keep it.
-      // For simplicity in this step, let's just keep all saved groups that are not in current groups as ghost groups?
-      // Or better: filter later. Let's add them for now.
-      for (const savedGroup of savedGroupsMap.values()) {
-        // Only keep ghost group if it has ghost tabs associated with it? 
-        // We'll filter this when rendering or cleaning up. For now, add it.
-        newGroupsState.push({ ...savedGroup, isGhost: true });
-      }
+      const newGroupsState = [...savedGroups];
 
       setTabs(newTabsState);
       setGroups(newGroupsState);
@@ -632,6 +591,12 @@ export const useTabs = () => {
     setGroups(prev => prev.map(g => g.id === groupId ? { ...g, ...updates } : g));
   };
 
+  const removeGroup = (groupId) => {
+    // Move tabs back to inbox and drop the group
+    setTabs(prev => prev.map(t => t.groupId === groupId ? { ...t, groupId: -1, subgroup: undefined } : t));
+    setGroups(prev => prev.filter(g => g.id !== groupId));
+  };
+
   const addGroupToSpace = (spaceId) => {
     const targetSpaceId = spaceId || 'default';
     const newGroup = {
@@ -669,6 +634,7 @@ export const useTabs = () => {
     updateSpace,
     moveGroupToSpace,
     updateGroup,
+    removeGroup,
     addGroupToSpace
   };
 };

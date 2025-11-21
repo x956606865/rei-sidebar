@@ -35,6 +35,7 @@ const Sidebar = () => {
         updateSpace,
         moveGroupToSpace,
         updateGroup,
+        removeGroup,
         addGroupToSpace
     } = useTabs();
     const { theme, toggleTheme } = useTheme();
@@ -392,6 +393,13 @@ const Sidebar = () => {
         setGroupEdit(null);
     };
 
+    const handleGroupDelete = (group) => {
+        if (!group?.id) return;
+        removeGroup(group.id);
+        setStickyGroup(prev => prev?.id === group.id ? null : prev);
+        setContextMenu(null);
+    };
+
     return (
         <div className="flex flex-col h-full bg-arc-bg text-arc-text select-none font-sans relative">
             {/* Pinned Tabs */}
@@ -518,6 +526,11 @@ const Sidebar = () => {
                                     label: 'Edit',
                                     icon: <Edit2 size={14} />,
                                     onClick: () => handleOpenGroupEdit(contextMenu.group)
+                                },
+                                {
+                                    label: 'Delete',
+                                    icon: <Trash2 size={14} />,
+                                    onClick: () => handleGroupDelete(contextMenu.group)
                                 },
                                 {
                                     label: 'Move to',
