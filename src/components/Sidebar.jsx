@@ -6,12 +6,34 @@ import ConfirmationModal from './ConfirmationModal';
 import SettingsModal from './SettingsModal';
 import SubgroupModal from './SubgroupModal';
 import GroupSelectModal from './GroupSelectModal';
+import SpaceSelector from './SpaceSelector';
 import { useTabs } from '../hooks/useTabs';
 import { useTheme } from '../context/ThemeContext';
 import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon, FolderPlus, LocateFixed, Folder, FolderOpen } from 'lucide-react';
 
 const Sidebar = () => {
-    const { tabs, groups, activeTabId, switchToTab, closeTab, removeTab, clearGhosts, togglePin, toggleGroupCollapse, getExportPayload, importData, setTabSubgroup, changeTabGroup } = useTabs();
+    const {
+        tabs,
+        groups,
+        activeTabId,
+        switchToTab,
+        closeTab,
+        removeTab,
+        clearGhosts,
+        togglePin,
+        toggleGroupCollapse,
+        getExportPayload,
+        importData,
+        setTabSubgroup,
+        changeTabGroup,
+        spaces,
+        activeSpaceId,
+        setActiveSpaceId,
+        addSpace,
+        removeSpace,
+        updateSpace,
+        moveGroupToSpace
+    } = useTabs();
     const { theme, toggleTheme } = useTheme();
     const [contextMenu, setContextMenu] = useState(null);
     const [tabToRemove, setTabToRemove] = useState(null);
@@ -241,7 +263,14 @@ const Sidebar = () => {
             if (tab.groupId && tab.groupId !== -1 && !processedGroupIds.has(tab.groupId)) {
                 processedGroupIds.add(tab.groupId);
                 const group = groups.find(g => g.id === tab.groupId);
-                if (group) {
+
+                // Filter by active space
+                const groupSpaceId = group?.spaceId || 'default';
+                const isVisible = activeSpaceId === 'default'
+                    ? (groupSpaceId === 'default' || !spaces.some(s => s.id === groupSpaceId)) // Show default groups + orphaned groups
+                    : groupSpaceId === activeSpaceId;
+
+                if (group && isVisible) {
                     items.push({
                         type: 'group',
                         group,
@@ -252,7 +281,7 @@ const Sidebar = () => {
         });
 
         return items;
-    }, [unpinnedTabs, groups, isInboxCollapsed]);
+    }, [unpinnedTabs, groups, isInboxCollapsed, activeSpaceId, spaces]);
 
     useEffect(() => {
         const meta = new Map();
@@ -381,14 +410,15 @@ const Sidebar = () => {
             </div>
 
             {/* Footer Controls */}
-            <div className="p-3 mt-auto flex items-center justify-between bg-arc-bg/95 backdrop-blur-sm">
-                <button
-                    className="p-2 rounded-md hover:bg-arc-hover text-arc-muted hover:text-white transition-colors"
-                    onClick={handleNewTab}
-                    title="New Tab"
-                >
-                    <Plus size={20} />
-                </button>
+            <div className="p-3 mt-auto flex items-center justify-between bg-arc-bg/95 backdrop-blur-sm border-t border-black/5 dark:border-white/5">
+                <SpaceSelector
+                    spaces={spaces}
+                    activeSpaceId={activeSpaceId}
+                    onSwitchSpace={setActiveSpaceId}
+                    onAddSpace={addSpace}
+                    onRemoveSpace={removeSpace}
+                    onUpdateSpace={updateSpace}
+                />
 
                 <div className="flex gap-1">
                     <button
@@ -448,6 +478,14 @@ const Sidebar = () => {
                             label: 'Add to Subgroup',
                             icon: <FolderPlus size={14} />,
                             onClick: () => handleOpenSubgroupModal(contextMenu.tab)
+                        }] : []),
+                        ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
+                            label: 'Move Group to Space',
+                            icon: <FolderOpen size={14} />,
+                            subMenu: spaces.filter(s => s.id !== (groups.find(g => g.id === contextMenu.tab.groupId)?.spaceId || 'default')).map(s => ({
+                                label: s.title,
+                                onClick: () => moveGroupToSpace(contextMenu.tab.groupId, s.id)
+                            }))
                         }] : []),
                         {
                             label: contextMenu.tab.isPinned ? 'Unpin Tab' : 'Pin Tab',

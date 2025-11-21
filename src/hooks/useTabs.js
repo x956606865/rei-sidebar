@@ -12,6 +12,8 @@ export const useTabs = () => {
   const [tabs, setTabs] = useState([]);
   const [groups, setGroups] = useState([]);
   const [activeTabId, setActiveTabId] = useState(null);
+  const [spaces, setSpaces] = useState([{ id: 'default', title: 'Default', color: 'blue' }]);
+  const [activeSpaceId, setActiveSpaceId] = useState('default');
   const isInternalUpdate = useRef(false);
 
   // Load tabs from storage or sync with current window
@@ -29,9 +31,11 @@ export const useTabs = () => {
       }
 
       // Load persisted tabs and groups
-      const storage = await chrome.storage.local.get(['savedTabs', 'savedGroups']);
+      const storage = await chrome.storage.local.get(['savedTabs', 'savedGroups', 'savedSpaces', 'activeSpaceId']);
       let savedTabs = storage.savedTabs || [];
       let savedGroups = storage.savedGroups || [];
+      let savedSpaces = storage.savedSpaces || [{ id: 'default', title: 'Default', color: 'blue' }];
+      let savedActiveSpaceId = storage.activeSpaceId || 'default';
 
       // Get current actual tabs and groups
       const currentTabs = await chrome.tabs.query({ currentWindow: true });
@@ -97,7 +101,8 @@ export const useTabs = () => {
         const savedGroup = savedGroupsMap.get(currentGroup.id);
         newGroupsState.push({
           ...currentGroup,
-          collapsed: savedGroup ? savedGroup.collapsed : currentGroup.collapsed // Prefer saved collapsed state if we want to enforce it, or just use current. 
+          collapsed: savedGroup ? savedGroup.collapsed : currentGroup.collapsed, // Prefer saved collapsed state if we want to enforce it, or just use current. 
+          spaceId: savedGroup ? (savedGroup.spaceId || 'default') : 'default'
           // Actually, Chrome syncs collapsed state. Let's just use Chrome's state for now, 
           // unless we want to support groups that are closed in Chrome but kept here (ghost groups).
           // For ghost groups support, we need to check savedGroups.
@@ -117,6 +122,8 @@ export const useTabs = () => {
 
       setTabs(newTabsState);
       setGroups(newGroupsState);
+      setSpaces(savedSpaces);
+      setActiveSpaceId(savedActiveSpaceId);
 
       const activeTab = currentTabs.find(t => t.active);
       if (activeTab) setActiveTabId(activeTab.id);
@@ -148,12 +155,17 @@ export const useTabs = () => {
           title: g.title,
           color: g.color,
           collapsed: g.collapsed,
-          isGhost: g.isGhost
+          isGhost: g.isGhost,
+          spaceId: g.spaceId || 'default'
         }));
         chrome.storage.local.set({ savedGroups: groupsToSave });
       }
+
+      if (spaces.length > 0) {
+        chrome.storage.local.set({ savedSpaces: spaces, activeSpaceId });
+      }
     }
-  }, [tabs, groups]);
+  }, [tabs, groups, spaces, activeSpaceId]);
 
   // Listen for tab updates
   useEffect(() => {
@@ -475,6 +487,37 @@ export const useTabs = () => {
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, subgroup: subgroupName || undefined } : t));
   };
 
+  const addSpace = (color) => {
+    const newSpace = {
+      id: generateLocalId('space'),
+      title: `Space ${spaces.length + 1}`,
+      color: color || 'grey'
+    };
+    setSpaces(prev => [...prev, newSpace]);
+    return newSpace;
+  };
+
+  const removeSpace = (spaceId) => {
+    if (spaceId === 'default') return; // Cannot delete default space
+
+    // Move groups from deleted space to default
+    setGroups(prev => prev.map(g => g.spaceId === spaceId ? { ...g, spaceId: 'default' } : g));
+
+    setSpaces(prev => prev.filter(s => s.id !== spaceId));
+    if (activeSpaceId === spaceId) {
+      setActiveSpaceId('default');
+    }
+  };
+
+  const updateSpace = (spaceId, updates) => {
+    setSpaces(prev => prev.map(s => s.id === spaceId ? { ...s, ...updates } : s));
+  };
+
+  const moveGroupToSpace = (groupId, targetSpaceId) => {
+    setGroups(prev => prev.map(g => g.id === groupId ? { ...g, spaceId: targetSpaceId } : g));
+  };
+
+
   return {
     tabs,
     activeTabId,
@@ -488,6 +531,21 @@ export const useTabs = () => {
     getExportPayload,
     importData,
     setTabSubgroup,
-    changeTabGroup
+    changeTabGroup,
+    spaces,
+    activeSpaceId,
+    setActiveSpaceId,
+    addSpace,
+    removeSpace,
+    updateSpace,
+    moveGroupToSpace
   };
+};
+
+export const useSpaces = () => {
+  // This hook might be better integrated into useTabs or separate. 
+  // Given the requirement to filter groups in useTabs, let's keep it inside useTabs for now 
+  // or export it from there if we refactor.
+  // For now, I will implement the logic inside useTabs to keep state centralized.
+  return {};
 };
