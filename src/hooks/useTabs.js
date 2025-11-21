@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 
+// Chrome 集成开关：初始化后不再与 Chrome tabGroups 同步
+const USE_CHROME_GROUP_SYNC = false;
+
 const normalizeTitle = (title = '') => title.trim().toLowerCase();
 const generateLocalId = (prefix) => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -177,7 +180,11 @@ export const useTabs = () => {
     };
 
     const handleUpdated = (tabId, changeInfo, tab) => {
-      setTabs(prev => prev.map(t => t.id === tabId ? { ...t, ...tab, isGhost: false } : t));
+      setTabs(prev => prev.map(t => {
+        if (t.id !== tabId) return t;
+        // 保留本地分组归属，避免被 Chrome 状态覆盖
+        return { ...t, ...tab, groupId: t.groupId ?? tab.groupId, isGhost: false };
+      }));
       if (tab.active) setActiveTabId(tabId);
     };
 
@@ -494,7 +501,7 @@ export const useTabs = () => {
         title: newGroupTitle,
         color: 'grey',
         collapsed: false,
-        isGhost: true
+        isGhost: false
       };
       resolvedGroupId = createdGroup.id;
       setGroups(prev => [...prev, createdGroup]);
@@ -502,7 +509,8 @@ export const useTabs = () => {
 
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, groupId: resolvedGroupId } : t));
 
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
+    // 若需与 Chrome 同步，可开启 USE_CHROME_GROUP_SYNC；默认独立维护，不再推送到 Chrome
+    if (USE_CHROME_GROUP_SYNC && typeof chrome !== 'undefined' && chrome.tabs) {
       try {
         if (resolvedGroupId === -1) {
           await chrome.tabs.ungroup(tabId);
@@ -513,14 +521,28 @@ export const useTabs = () => {
             await chrome.tabGroups.update(newId, { title: createdGroup.title, color: createdGroup.color });
           }
           setGroups(prev => prev.map(g => g.id === createdGroup.id ? { ...g, id: newId, isGhost: false } : g));
-          setTabs(prev => prev.map(t => t.id === tabId ? { ...t, groupId: newId } : t));
+          setTabs(prev => prev.map(t => t.groupId === createdGroup.id ? { ...t, groupId: newId } : t));
         } else if (chrome.tabs.group) {
-          await chrome.tabs.group({ tabIds: tabId, groupId: resolvedGroupId });
+          const targetGroup = groups.find(g => g.id === resolvedGroupId);
+          if (targetGroup && targetGroup.isGhost) {
+            const newId = await chrome.tabs.group({ tabIds: tabId });
+            resolvedGroupId = newId;
+            if (chrome.tabGroups && chrome.tabGroups.update) {
+              await chrome.tabGroups.update(newId, { title: targetGroup.title, color: targetGroup.color });
+            }
+            setGroups(prev => prev.map(g => g.id === targetGroup.id ? { ...g, id: newId, isGhost: false } : g));
+            setTabs(prev => prev.map(t => t.groupId === targetGroup.id ? { ...t, groupId: newId } : t));
+          } else {
+            await chrome.tabs.group({ tabIds: tabId, groupId: resolvedGroupId });
+          }
         }
       } catch (e) {
         console.error('Failed to change tab group', e);
       }
     }
+    
+    // 本地分组使用时，确保目标组标记为非幽灵
+    setGroups(prev => prev.map(g => g.id === resolvedGroupId ? { ...g, isGhost: false } : g));
   };
 
   const setTabSubgroup = (tabId, subgroupName) => {
@@ -591,6 +613,24 @@ export const useTabs = () => {
     setGroups(prev => prev.map(g => g.id === groupId ? { ...g, spaceId: targetSpaceId } : g));
   };
 
+  const updateGroup = (groupId, updates) => {
+    setGroups(prev => prev.map(g => g.id === groupId ? { ...g, ...updates } : g));
+  };
+
+  const addGroupToSpace = (spaceId) => {
+    const targetSpaceId = spaceId || 'default';
+    const newGroup = {
+      id: generateLocalId('group'),
+      title: `Group ${groups.length + 1}`,
+      color: 'grey',
+      collapsed: false,
+      isGhost: true,
+      spaceId: targetSpaceId
+    };
+    setGroups(prev => [...prev, newGroup]);
+    return newGroup;
+  };
+
 
   return {
     tabs,
@@ -612,7 +652,9 @@ export const useTabs = () => {
     addSpace,
     removeSpace,
     updateSpace,
-    moveGroupToSpace
+    moveGroupToSpace,
+    updateGroup,
+    addGroupToSpace
   };
 };
 

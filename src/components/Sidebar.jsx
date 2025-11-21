@@ -9,7 +9,8 @@ import GroupSelectModal from './GroupSelectModal';
 import SpaceSelector from './SpaceSelector';
 import { useTabs } from '../hooks/useTabs';
 import { useTheme } from '../context/ThemeContext';
-import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon, FolderPlus, LocateFixed, Folder, FolderOpen } from 'lucide-react';
+import { Plus, Settings, Trash2, Pin, PinOff, X, Sun, Moon, FolderPlus, LocateFixed, Folder, FolderOpen, Edit2 } from 'lucide-react';
+import GroupEditModal from './GroupEditModal';
 
 const Sidebar = () => {
     const {
@@ -32,7 +33,9 @@ const Sidebar = () => {
         addSpace,
         removeSpace,
         updateSpace,
-        moveGroupToSpace
+        moveGroupToSpace,
+        updateGroup,
+        addGroupToSpace
     } = useTabs();
     const { theme, toggleTheme } = useTheme();
     const [contextMenu, setContextMenu] = useState(null);
@@ -46,6 +49,7 @@ const Sidebar = () => {
     const [subgroupTarget, setSubgroupTarget] = useState(null);
     const listRef = useRef(null);
     const [groupModal, setGroupModal] = useState(null);
+    const [groupEdit, setGroupEdit] = useState(null);
     const [stickyGroup, setStickyGroup] = useState(null);
     const groupHeaderRefs = useRef(new Map());
     const groupMetaRef = useRef(new Map());
@@ -289,6 +293,23 @@ const Sidebar = () => {
             }
         });
 
+        // include empty groups so newly created groups (via Add Group) show up
+        groups.forEach(group => {
+            if (processedGroupIds.has(group.id)) return;
+            const groupSpaceId = group?.spaceId || 'default';
+            const isVisible = activeSpaceId === 'default'
+                ? (groupSpaceId === 'default' || !spaces.some(s => s.id === groupSpaceId))
+                : groupSpaceId === activeSpaceId;
+            if (isVisible) {
+                processedGroupIds.add(group.id);
+                items.push({
+                    type: 'group',
+                    group,
+                    tabs: []
+                });
+            }
+        });
+
         return items;
     }, [unpinnedTabs, groups, isInboxCollapsed, activeSpaceId, spaces]);
 
@@ -353,6 +374,22 @@ const Sidebar = () => {
         } else {
             toggleGroupCollapse(stickyGroup.id);
         }
+    };
+
+    const handleOpenGroupEdit = (group) => {
+        setGroupEdit({
+            id: group.id,
+            title: group.title || '',
+            color: group.color || 'grey'
+        });
+        setContextMenu(null);
+    };
+
+    const handleGroupEditConfirm = ({ title, color }) => {
+        if (groupEdit?.id) {
+            updateGroup(groupEdit.id, { title: title?.trim() || 'Untitled Group', color });
+        }
+        setGroupEdit(null);
     };
 
     return (
@@ -428,6 +465,7 @@ const Sidebar = () => {
                     onAddSpace={addSpace}
                     onRemoveSpace={removeSpace}
                     onUpdateSpace={updateSpace}
+                    onAddGroup={addGroupToSpace}
                 />
 
                 <div className="flex gap-1">
@@ -476,6 +514,11 @@ const Sidebar = () => {
                     options={
                         contextMenu.group
                             ? [
+                                {
+                                    label: 'Edit',
+                                    icon: <Edit2 size={14} />,
+                                    onClick: () => handleOpenGroupEdit(contextMenu.group)
+                                },
                                 {
                                     label: 'Move to',
                                     icon: <FolderOpen size={14} />,
@@ -572,6 +615,16 @@ const Sidebar = () => {
                 currentGroupId={groupModal?.currentGroupId ?? -1}
                 onConfirm={handleGroupConfirm}
                 onClose={() => setGroupModal(null)}
+            />
+
+            <GroupEditModal
+                isOpen={!!groupEdit}
+                initialName={groupEdit?.title || ''}
+                initialColor={groupEdit?.color || 'grey'}
+                colors={Object.keys(colorClassMap)}
+                colorClassMap={colorClassMap}
+                onConfirm={handleGroupEditConfirm}
+                onClose={() => setGroupEdit(null)}
             />
 
             <input

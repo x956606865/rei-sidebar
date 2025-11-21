@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Trash2, Palette } from 'lucide-react';
+import { Plus, Trash2, Palette, FolderPlus } from 'lucide-react';
 import ContextMenu from './ContextMenu';
 
-const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRemoveSpace, onUpdateSpace }) => {
+const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRemoveSpace, onUpdateSpace, onAddGroup }) => {
     const [contextMenu, setContextMenu] = useState(null);
     const [colorMenu, setColorMenu] = useState(null);
 
@@ -172,6 +172,13 @@ const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRem
                     y={contextMenu.y}
                     onClose={() => setContextMenu(null)}
                     options={[
+                        {
+                            label: 'Add Group',
+                            icon: <FolderPlus size={14} />,
+                            onClick: () => {
+                                onAddGroup?.(contextMenu.space.id);
+                            }
+                        },
                         ...(contextMenu.space.id !== 'default' ? [{
                             label: 'Delete Space',
                             icon: <Trash2 size={14} />,
