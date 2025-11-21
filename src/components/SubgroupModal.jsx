@@ -42,8 +42,8 @@ const SubgroupModal = ({
                     <div className="flex items-center gap-2">
                         <FolderPlus size={16} className="text-arc-muted" />
                         <div>
-                            <h3 className="text-sm font-semibold">添加到子组</h3>
-                            <p className="text-xs text-arc-muted mt-0.5">所在分组：{groupTitle || '未命名分组'}</p>
+                            <h3 className="text-sm font-semibold">Add to subgroup</h3>
+                            <p className="text-xs text-arc-muted mt-0.5">Group: {groupTitle || 'Untitled Group'}</p>
                         </div>
                     </div>
                     <button
@@ -57,18 +57,18 @@ const SubgroupModal = ({
 
                 <div className="p-5 space-y-4">
                     <div className="space-y-2">
-                        <label className="text-xs text-arc-muted">子组名称</label>
+                        <label className="text-xs text-arc-muted">Subgroup name</label>
                         <input
                             value={value}
                             onChange={(e) => setValue(e.target.value)}
-                            placeholder="输入新子组名，或选择下方已有子组"
+                            placeholder="Enter a new subgroup or pick one below"
                             className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-sm text-arc-text placeholder:text-arc-muted focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                         />
                     </div>
 
                     {normalizedExisting.length > 0 && (
                         <div className="space-y-2">
-                            <div className="text-xs text-arc-muted">已存在的子组</div>
+                            <div className="text-xs text-arc-muted">Existing subgroups</div>
                             <div className="flex flex-wrap gap-2">
                                 {normalizedExisting.map(name => (
                                     <button
@@ -83,7 +83,7 @@ const SubgroupModal = ({
                                     className="px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 text-xs text-arc-muted hover:text-arc-text hover:bg-arc-hover transition-colors"
                                     onClick={() => setValue('')}
                                 >
-                                    清除子组
+                                    Clear subgroup
                                 </button>
                             </div>
                         </div>
@@ -94,13 +94,13 @@ const SubgroupModal = ({
                             onClick={onClose}
                             className="flex-1 px-4 py-2 rounded-lg border border-black/10 dark:border-white/10 text-sm text-arc-text dark:text-white hover:bg-arc-hover transition-colors"
                         >
-                            取消
+                            Cancel
                         </button>
                         <button
                             onClick={handleSubmit}
                             className="flex-1 px-4 py-2 rounded-lg bg-[#3b82f6]/80 hover:bg-[#3b82f6] text-white text-sm font-semibold transition-colors"
                         >
-                            确定
+                            Confirm
                         </button>
                     </div>
                 </div>

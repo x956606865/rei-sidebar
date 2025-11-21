@@ -17,8 +17,8 @@ const SettingsModal = ({
             <div className="bg-arc-bg text-arc-text border border-black/10 dark:border-white/10 rounded-xl shadow-2xl w-[380px] max-w-[90vw] overflow-hidden animate-in fade-in zoom-in duration-200">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 dark:border-white/10">
                     <div>
-                        <h3 className="text-lg font-semibold">设置</h3>
-                        <p className="text-xs text-arc-muted mt-1">导入或导出当前分组与标签数据</p>
+                        <h3 className="text-lg font-semibold">Settings</h3>
+                        <p className="text-xs text-arc-muted mt-1">Import or export current groups and tabs</p>
                     </div>
                     <button
                         className="p-2 rounded-md text-arc-muted hover:text-arc-text hover:bg-arc-hover transition-colors"
@@ -36,7 +36,7 @@ const SettingsModal = ({
                         className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-arc-hover hover:bg-arc-active text-arc-text dark:text-white text-sm font-medium border border-black/10 dark:border-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Download size={16} />
-                        导出当前数据
+                        Export current data
                     </button>
 
                     <button
@@ -45,7 +45,7 @@ const SettingsModal = ({
                         className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[#3b82f6]/15 hover:bg-[#3b82f6]/25 text-arc-text dark:text-white text-sm font-medium border border-[#3b82f6]/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Upload size={16} />
-                        导入数据文件
+                        Import data file
                     </button>
 
                     {(message || error) && (

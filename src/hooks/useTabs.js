@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-// Chrome 集成开关：初始化后不再与 Chrome tabGroups 同步
+// Chrome integration toggle: after init we no longer sync with Chrome tabGroups
 const USE_CHROME_GROUP_SYNC = false;
 
 const normalizeTitle = (title = '') => title.trim().toLowerCase();
@@ -40,7 +40,7 @@ export const useTabs = () => {
       let savedSpaces = storage.savedSpaces || [{ id: 'default', title: 'Default', color: 'blue' }];
       let savedActiveSpaceId = storage.activeSpaceId || 'default';
 
-      // Get current actual tabs；groups 由本地独立维护，不再从 Chrome 读取
+      // Get current actual tabs; groups are maintained locally without reading from Chrome
       const currentTabs = await chrome.tabs.query({ currentWindow: true });
 
       console.log('Init Tabs Debug:', {
@@ -61,7 +61,7 @@ export const useTabs = () => {
       for (const savedTab of savedTabs) {
         const liveTab = currentTabsMap.get(savedTab.id);
         if (liveTab) {
-          // Tab still exists, prefer本地分组/子分组/空间信息
+          // Tab still exists; prefer persisted group/subgroup/space info
           const merged = { ...savedTab, ...liveTab, isGhost: false };
           if (savedTab.groupId !== undefined) merged.groupId = savedTab.groupId;
           if (savedTab.subgroup !== undefined) merged.subgroup = savedTab.subgroup;
@@ -141,7 +141,7 @@ export const useTabs = () => {
     const handleUpdated = (tabId, changeInfo, tab) => {
       setTabs(prev => prev.map(t => {
         if (t.id !== tabId) return t;
-        // 保留本地分组与空间归属，避免被 Chrome 状态覆盖
+        // Preserve local group and space assignment to avoid overrides from Chrome
         return {
           ...t,
           ...tab,
@@ -483,7 +483,7 @@ export const useTabs = () => {
 
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, groupId: resolvedGroupId } : t));
 
-    // 若需与 Chrome 同步，可开启 USE_CHROME_GROUP_SYNC；默认独立维护，不再推送到 Chrome
+    // To sync with Chrome, set USE_CHROME_GROUP_SYNC; by default we manage groups locally only
     if (USE_CHROME_GROUP_SYNC && typeof chrome !== 'undefined' && chrome.tabs) {
       try {
         if (resolvedGroupId === -1) {
@@ -515,7 +515,7 @@ export const useTabs = () => {
       }
     }
     
-    // 本地分组使用时，确保目标组标记为非幽灵
+    // When using local groups, ensure the target group is not marked as ghost
     setGroups(prev => prev.map(g => g.id === resolvedGroupId ? { ...g, isGhost: false } : g));
   };
 

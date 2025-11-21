@@ -36,8 +36,8 @@ const GroupEditModal = ({
                     <div className="flex items-center gap-2">
                         <Palette size={16} className="text-arc-muted" />
                         <div>
-                            <h3 className="text-sm font-semibold">编辑分组</h3>
-                            <p className="text-xs text-arc-muted mt-0.5">修改名称与颜色</p>
+                            <h3 className="text-sm font-semibold">Edit Group</h3>
+                            <p className="text-xs text-arc-muted mt-0.5">Update name and color</p>
                         </div>
                     </div>
                     <button
@@ -51,17 +51,17 @@ const GroupEditModal = ({
 
                 <div className="p-5 space-y-4">
                     <div className="space-y-2">
-                        <label className="text-xs text-arc-muted">名称</label>
+                        <label className="text-xs text-arc-muted">Name</label>
                         <input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="输入分组名称"
+                            placeholder="Enter group name"
                             className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-sm text-arc-text placeholder:text-arc-muted focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs text-arc-muted">颜色</label>
+                        <label className="text-xs text-arc-muted">Color</label>
                         <div className="grid grid-cols-6 gap-2">
                             {colors.map(c => (
                                 <button
@@ -81,13 +81,13 @@ const GroupEditModal = ({
                             onClick={onClose}
                             className="flex-1 px-4 py-2 rounded-lg border border-black/10 dark:border-white/10 text-sm text-arc-text dark:text-white hover:bg-arc-hover transition-colors"
                         >
-                            取消
+                            Cancel
                         </button>
                         <button
                             onClick={handleSubmit}
                             className="flex-1 px-4 py-2 rounded-lg bg-[#3b82f6]/80 hover:bg-[#3b82f6] text-white text-sm font-semibold transition-colors"
                         >
-                            确定
+                            Save
                         </button>
                     </div>
                 </div>

@@ -20,7 +20,6 @@ const Sidebar = () => {
         switchToTab,
         closeTab,
         removeTab,
-        clearGhosts,
         togglePin,
         toggleGroupCollapse,
         getExportPayload,
@@ -165,12 +164,12 @@ const Sidebar = () => {
                 document.body.removeChild(link);
             }
 
-            setSettingsMessage(`已导出：${fileName}`);
+            setSettingsMessage(`Exported: ${fileName}`);
             setSettingsError('');
             setTimeout(() => URL.revokeObjectURL(url), 5000);
         } catch (e) {
-            console.error('导出失败', e);
-            setSettingsError('导出失败，请稍后重试');
+            console.error('Export failed', e);
+            setSettingsError('Export failed, please try again later.');
         }
     };
 
@@ -192,10 +191,10 @@ const Sidebar = () => {
             const text = await file.text();
             const data = JSON.parse(text);
             const result = importData(data);
-            setSettingsMessage(`导入完成：新增分组 ${result?.addedGroups || 0} 个，新增标签 ${result?.addedTabs || 0} 个，跳过分组 ${result?.skippedGroups || 0} 个，跳过标签 ${result?.skippedTabs || 0} 个。`);
+            setSettingsMessage(`Import finished: groups added ${result?.addedGroups || 0}, tabs added ${result?.addedTabs || 0}, groups skipped ${result?.skippedGroups || 0}, tabs skipped ${result?.skippedTabs || 0}.`);
         } catch (e) {
-            console.error('导入失败', e);
-            setSettingsError('导入失败，文件格式可能不正确');
+            console.error('Import failed', e);
+            setSettingsError('Import failed, the file format may be invalid.');
         } finally {
             setIsProcessingImport(false);
             if (event.target) {
@@ -423,7 +422,7 @@ const Sidebar = () => {
                         <span className="text-xs font-semibold uppercase tracking-wide text-arc-text flex-1 truncate">
                             {stickyGroup.type === 'inbox' ? 'Inbox' : (stickyGroup.title || 'Untitled Group')}
                         </span>
-                        <span className="text-arc-muted text-xs font-medium">{stickyGroup.type === 'inbox' ? (stickyGroup.collapsed ? '展开' : '收起') : '收起'}</span>
+                        <span className="text-arc-muted text-xs font-medium">{stickyGroup.type === 'inbox' ? (stickyGroup.collapsed ? 'Expand' : 'Collapse') : 'Collapse'}</span>
                     </div>
                 )}
 
@@ -486,13 +485,6 @@ const Sidebar = () => {
                     </button>
                     <button
                         className="p-2 rounded-md hover:bg-arc-hover text-arc-muted hover:text-white transition-colors"
-                        onClick={clearGhosts}
-                        title="Clear Closed Tabs"
-                    >
-                        <Trash2 size={18} />
-                    </button>
-                    <button
-                        className="p-2 rounded-md hover:bg-arc-hover text-arc-muted hover:text-white transition-colors"
                         title="Settings"
                         onClick={() => {
                             setSettingsError('');
@@ -507,7 +499,7 @@ const Sidebar = () => {
 
             <button
                 className="absolute right-4 bottom-16 p-2 rounded-full bg-arc-hover text-arc-muted hover:text-arc-text hover:bg-arc-active shadow-lg border border-black/5 dark:border-white/10 transition-colors"
-                title="定位到当前标签"
+                title="Locate active tab"
                 onClick={handleScrollToActive}
             >
                 <LocateFixed size={14} />

@@ -117,7 +117,7 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
 
                                 return sortedEntries.map(([subgroup, subgroupTabs]) => {
                                     const isUngrouped = subgroup === '__ungrouped';
-                                    const displayName = isUngrouped ? '未分组' : subgroup;
+                                    const displayName = isUngrouped ? 'Ungrouped' : subgroup;
                                     return (
                                         <div key={subgroup} className="mb-3 last:mb-1">
                                             <div className="px-2 py-1 text-xs font-bold text-arc-text uppercase tracking-wider">

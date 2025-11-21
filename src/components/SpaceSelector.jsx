@@ -94,7 +94,7 @@ const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRem
     const handleColorSelect = (color) => {
         const created = onAddSpace(color);
         if (!created) {
-            alert('颜色已存在或已达 4 个 Space 上限，请先删除或更换颜色。');
+            alert('Color already exists or you reached the 4-space limit. Please delete or choose another color.');
         }
         setShowColorPicker(false);
     };
@@ -223,7 +223,7 @@ const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRem
                         className="col-span-3 mt-1 w-full text-xs text-arc-muted hover:text-arc-text text-center"
                         onClick={() => setColorMenu(null)}
                     >
-                        取消
+                        Cancel
                     </button>
                 </div>,
                 document.body

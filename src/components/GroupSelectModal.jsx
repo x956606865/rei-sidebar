@@ -20,7 +20,7 @@ const GroupSelectModal = ({
     }, [isOpen, currentGroupId]);
 
     const sortedGroups = useMemo(() => {
-        return [...groups].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'zh-Hans'));
+        return [...groups].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'en'));
     }, [groups]);
 
     if (!isOpen) return null;
@@ -33,7 +33,7 @@ const GroupSelectModal = ({
         onConfirm(payload);
     };
 
-    const modeLabel = mode === 'move' ? '移动到其他组' : '添加到组';
+    const modeLabel = mode === 'move' ? 'Move to another group' : 'Add to group';
 
     return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -43,7 +43,7 @@ const GroupSelectModal = ({
                         <FolderPlus size={16} className="text-arc-muted" />
                         <div>
                             <h3 className="text-sm font-semibold">{modeLabel}</h3>
-                            <p className="text-xs text-arc-muted mt-0.5">选择现有分组，或创建新分组</p>
+                            <p className="text-xs text-arc-muted mt-0.5">Choose an existing group or create a new one</p>
                         </div>
                     </div>
                     <button
@@ -57,7 +57,7 @@ const GroupSelectModal = ({
 
                 <div className="p-5 space-y-3">
                     <div className="space-y-2">
-                        <div className="text-xs text-arc-muted">现有分组</div>
+                        <div className="text-xs text-arc-muted">Existing groups</div>
                         <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
                             <label className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-arc-hover cursor-pointer">
                                 <input
@@ -68,7 +68,7 @@ const GroupSelectModal = ({
                                     onChange={() => setSelectedId(-1)}
                                 />
                                 <Inbox size={14} className="text-arc-muted" />
-                                <span className="text-sm text-arc-text">收件箱（无分组）</span>
+                                <span className="text-sm text-arc-text">Inbox (no group)</span>
                             </label>
                             {sortedGroups.map(g => (
                                 <label key={g.id} className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-arc-hover cursor-pointer">
@@ -87,11 +87,11 @@ const GroupSelectModal = ({
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs text-arc-muted">或创建新分组</label>
+                        <label className="text-xs text-arc-muted">Or create a new group</label>
                         <input
                             value={newGroup}
                             onChange={(e) => setNewGroup(e.target.value)}
-                            placeholder="输入新分组名称（留空则使用上方选择）"
+                            placeholder="Enter a new group name (leave blank to use selection above)"
                             className="w-full rounded-lg border border-black/10 dark:border-white/10 bg-transparent px-3 py-2 text-sm text-arc-text placeholder:text-arc-muted focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                         />
                     </div>
@@ -101,13 +101,13 @@ const GroupSelectModal = ({
                             onClick={onClose}
                             className="flex-1 px-4 py-2 rounded-lg border border-black/10 dark:border-white/10 text-sm text-arc-text dark:text-white hover:bg-arc-hover transition-colors"
                         >
-                            取消
+                            Cancel
                         </button>
                         <button
                             onClick={handleSubmit}
                             className="flex-1 px-4 py-2 rounded-lg bg-[#3b82f6]/80 hover:bg-[#3b82f6] text-white text-sm font-semibold transition-colors"
                         >
-                            确定
+                            Confirm
                         </button>
                     </div>
                 </div>
