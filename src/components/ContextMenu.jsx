@@ -5,6 +5,7 @@ const ContextMenu = ({ x, y, onClose, options }) => {
     const menuRef = useRef(null);
     const [hoveredIndex, setHoveredIndex] = useState(null);
     const [pos, setPos] = useState({ x, y });
+    const [menuSize, setMenuSize] = useState({ width: 0, height: 0 });
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -27,6 +28,9 @@ const ContextMenu = ({ x, y, onClose, options }) => {
         const menu = menuRef.current;
         if (!menu) return;
         const rect = menu.getBoundingClientRect();
+        if (rect.width !== menuSize.width || rect.height !== menuSize.height) {
+            setMenuSize({ width: rect.width, height: rect.height });
+        }
         let nextX = pos.x;
         let nextY = pos.y;
         const padding = 8;
@@ -61,7 +65,7 @@ const ContextMenu = ({ x, y, onClose, options }) => {
                         className={`w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 justify-between group ${
                             option.disabled
                                 ? 'text-gray-500 cursor-not-allowed'
-                                : 'text-white hover:bg-blue-500 transition-colors'
+                                : 'text-white/90 hover:bg-white/10 transition-colors'
                         }`}
                         disabled={option.disabled}
                         onClick={(e) => {
@@ -78,22 +82,36 @@ const ContextMenu = ({ x, y, onClose, options }) => {
                         {option.subMenu && <span className={`text-gray-400 ${option.disabled ? '' : 'group-hover:text-white'}`}>▶</span>}
                     </button>
 
-                    {option.subMenu && hoveredIndex === index && (
-                        <div className="absolute left-full top-0 bg-[#2B2D31] border border-white/10 rounded-lg shadow-xl py-1 min-w-[160px] ml-1">
-                            {option.subMenu.map((subOption, subIndex) => (
-                                <button
-                                    key={subIndex}
-                                    className="w-full text-left px-3 py-1.5 text-sm text-white hover:bg-blue-500 transition-colors"
-                                    onClick={() => {
-                                        subOption.onClick();
-                                        onClose();
-                                    }}
-                                >
-                                    {subOption.label}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    {option.subMenu && hoveredIndex === index && (() => {
+                        const submenuWidth = 110;
+                        const padding = 8;
+                        const canMeasure = typeof window !== 'undefined';
+                        const openRight = canMeasure
+                            ? pos.x + (menuSize.width || 160) + submenuWidth + padding <= window.innerWidth
+                            : true;
+                        const submenuStyle = openRight
+                            ? { left: '100%', marginLeft: '4px' }
+                            : { right: '100%', marginRight: '4px' };
+                        return (
+                            <div
+                                className="absolute top-0 bg-[#2B2D31] border border-white/10 rounded-lg shadow-xl py-1 min-w-[96px]"
+                                style={submenuStyle}
+                            >
+                                {option.subMenu.map((subOption, subIndex) => (
+                                    <button
+                                        key={subIndex}
+                                        className="w-full text-left px-2 py-1.5 text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-2"
+                                        onClick={() => {
+                                            subOption.onClick();
+                                            onClose();
+                                        }}
+                                    >
+                                        {subOption.label}
+                                    </button>
+                                ))}
+                            </div>
+                        );
+                    })()}
                 </div>
             ))}
         </div>,

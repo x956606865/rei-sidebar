@@ -81,6 +81,15 @@ const Sidebar = () => {
         });
     };
 
+    const handleGroupContextMenu = (e, group) => {
+        e.preventDefault();
+        setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            group
+        });
+    };
+
     const handleRemoveClick = (tab) => {
         setTabToRemove(tab);
         setContextMenu(null);
@@ -400,6 +409,7 @@ const Sidebar = () => {
                                 onClose={closeTab}
                                 onToggleCollapse={toggleGroupCollapse}
                                 onContextMenu={handleContextMenu}
+                                onGroupContextMenu={handleGroupContextMenu}
                                 groupBySubgroup={true}
                                 registerHeaderRef={registerHeaderRef}
                             />
@@ -463,41 +473,66 @@ const Sidebar = () => {
                     x={contextMenu.x}
                     y={contextMenu.y}
                     onClose={() => setContextMenu(null)}
-                    options={[
-                        ...(contextMenu.tab && (!contextMenu.tab.groupId || contextMenu.tab.groupId === -1) ? [{
-                            label: 'Add to Group',
-                            icon: <FolderPlus size={14} />,
-                            onClick: () => handleOpenGroupModal(contextMenu.tab, 'add')
-                        }] : []),
-                        ...(contextMenu.tab && contextMenu.tab.groupId && contextMenu.tab.groupId !== -1 ? [{
-                            label: 'Move to Group',
-                            icon: <FolderOpen size={14} />,
-                            onClick: () => handleOpenGroupModal(contextMenu.tab, 'move')
-                        }] : []),
-                        ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
-                            label: 'Add to Subgroup',
-                            icon: <FolderPlus size={14} />,
-                            onClick: () => handleOpenSubgroupModal(contextMenu.tab)
-                        }] : []),
-                        ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
-                            label: 'Move Group to Space',
-                            icon: <FolderOpen size={14} />,
-                            subMenu: spaces.filter(s => s.id !== (groups.find(g => g.id === contextMenu.tab.groupId)?.spaceId || 'default')).map(s => ({
-                                label: s.title,
-                                onClick: () => moveGroupToSpace(contextMenu.tab.groupId, s.id)
-                            }))
-                        }] : []),
-                        {
-                            label: contextMenu.tab.isPinned ? 'Unpin Tab' : 'Pin Tab',
-                            icon: contextMenu.tab.isPinned ? <PinOff size={14} /> : <Pin size={14} />,
-                            onClick: () => togglePin(contextMenu.tab.id)
-                        },
-                        {
-                            label: 'Remove Tab',
-                            icon: <Trash2 size={14} />,
-                            onClick: () => handleRemoveClick(contextMenu.tab)
-                        }
-                    ]}
+                    options={
+                        contextMenu.group
+                            ? [
+                                {
+                                    label: 'Move to',
+                                    icon: <FolderOpen size={14} />,
+                                    subMenu: spaces
+                                        .filter(s => s.id !== (contextMenu.group.spaceId || 'default'))
+                                        .map(s => ({
+                                            label: (
+                                                <span className="flex items-center gap-2" title={s.title}>
+                                                    <span className={`w-3 h-3 rounded-full ${colorClassMap[s.color] || 'bg-gray-500'}`} />
+                                                </span>
+                                            ),
+                                            onClick: () => moveGroupToSpace(contextMenu.group.id, s.id)
+                                        }))
+                                }
+                            ]
+                            : [
+                                ...(contextMenu.tab && (!contextMenu.tab.groupId || contextMenu.tab.groupId === -1) ? [{
+                                    label: 'Add to Group',
+                                    icon: <FolderPlus size={14} />,
+                                    onClick: () => handleOpenGroupModal(contextMenu.tab, 'add')
+                                }] : []),
+                                ...(contextMenu.tab && contextMenu.tab.groupId && contextMenu.tab.groupId !== -1 ? [{
+                                    label: 'Move to Group',
+                                    icon: <FolderOpen size={14} />,
+                                    onClick: () => handleOpenGroupModal(contextMenu.tab, 'move')
+                                }] : []),
+                                ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
+                                    label: 'Add to Subgroup',
+                                    icon: <FolderPlus size={14} />,
+                                    onClick: () => handleOpenSubgroupModal(contextMenu.tab)
+                                }] : []),
+                                ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
+                                    label: 'Move to',
+                                    icon: <FolderOpen size={14} />,
+                                    subMenu: spaces
+                                        .filter(s => s.id !== (groups.find(g => g.id === contextMenu.tab.groupId)?.spaceId || 'default'))
+                                        .map(s => ({
+                                            label: (
+                                                <span className="flex items-center gap-2" title={s.title}>
+                                                    <span className={`w-3 h-3 rounded-full ${colorClassMap[s.color] || 'bg-gray-500'}`} />
+                                                </span>
+                                            ),
+                                            onClick: () => moveGroupToSpace(contextMenu.tab.groupId, s.id)
+                                        }))
+                                }] : []),
+                                {
+                                    label: contextMenu.tab.isPinned ? 'Unpin Tab' : 'Pin Tab',
+                                    icon: contextMenu.tab.isPinned ? <PinOff size={14} /> : <Pin size={14} />,
+                                    onClick: () => togglePin(contextMenu.tab.id)
+                                },
+                                {
+                                    label: 'Remove Tab',
+                                    icon: <Trash2 size={14} />,
+                                    onClick: () => handleRemoveClick(contextMenu.tab)
+                                }
+                            ]
+                    }
                 />
             )}
 
