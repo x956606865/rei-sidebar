@@ -176,14 +176,21 @@ export const useTabs = () => {
 
     const handleCreated = (tab) => {
       if (isInternalUpdate.current) return;
-      setTabs(prev => [...prev, { ...tab, isGhost: false }]);
+      setTabs(prev => [...prev, { ...tab, isGhost: false, spaceId: 'default' }]);
     };
 
     const handleUpdated = (tabId, changeInfo, tab) => {
       setTabs(prev => prev.map(t => {
         if (t.id !== tabId) return t;
-        // 保留本地分组归属，避免被 Chrome 状态覆盖
-        return { ...t, ...tab, groupId: t.groupId ?? tab.groupId, isGhost: false };
+        // 保留本地分组与空间归属，避免被 Chrome 状态覆盖
+        return {
+          ...t,
+          ...tab,
+          groupId: t.groupId ?? tab.groupId,
+          spaceId: t.spaceId ?? 'default',
+          subgroup: t.subgroup,
+          isGhost: false
+        };
       }));
       if (tab.active) setActiveTabId(tabId);
     };
@@ -249,7 +256,15 @@ export const useTabs = () => {
       const newTab = await chrome.tabs.create({ url: tab.url, active: true });
 
       // Replace ghost tab with new tab in state
-      setTabs(prev => prev.map(t => t.id === tab.id ? { ...newTab, isGhost: false } : t));
+      setTabs(prev => prev.map(t => t.id === tab.id
+        ? {
+            ...newTab,
+            isGhost: false,
+            groupId: t.groupId ?? tab.groupId ?? -1,
+            spaceId: t.spaceId ?? tab.spaceId ?? 'default',
+            subgroup: t.subgroup ?? tab.subgroup
+          }
+        : t));
       setActiveTabId(newTab.id);
 
       // Small delay to allow listeners to settle if needed, though isInternalUpdate handles most
