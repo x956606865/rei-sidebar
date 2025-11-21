@@ -488,6 +488,9 @@ export const useTabs = () => {
   };
 
   const addSpace = (color) => {
+    if (spaces.length >= 4) {
+      return null; // max spaces reached
+    }
     const newSpace = {
       id: generateLocalId('space'),
       title: `Space ${spaces.length + 1}`,
@@ -500,13 +503,43 @@ export const useTabs = () => {
   const removeSpace = (spaceId) => {
     if (spaceId === 'default') return; // Cannot delete default space
 
-    // Move groups from deleted space to default
-    setGroups(prev => prev.map(g => g.spaceId === spaceId ? { ...g, spaceId: 'default' } : g));
+    setGroups(prevGroups => {
+      const normalize = (title = '') => title.trim().toLowerCase();
+      const titleToDefaultGroup = new Map(
+        prevGroups
+          .filter(g => (g.spaceId || 'default') === 'default')
+          .map(g => [normalize(g.title || ''), g])
+      );
+
+      const mergeMap = new Map(); // sourceGroupId -> targetGroupId
+      const nextGroups = [];
+
+      prevGroups.forEach(g => {
+        if (g.spaceId === spaceId) {
+          const key = normalize(g.title || '');
+          const target = titleToDefaultGroup.get(key);
+          if (target) {
+            mergeMap.set(g.id, target.id);
+            // skip adding g (merged into target)
+          } else {
+            const moved = { ...g, spaceId: 'default' };
+            nextGroups.push(moved);
+            titleToDefaultGroup.set(key, moved);
+          }
+        } else {
+          nextGroups.push(g);
+        }
+      });
+
+      if (mergeMap.size > 0) {
+        setTabs(prevTabs => prevTabs.map(t => mergeMap.has(t.groupId) ? { ...t, groupId: mergeMap.get(t.groupId) } : t));
+      }
+
+      return nextGroups;
+    });
 
     setSpaces(prev => prev.filter(s => s.id !== spaceId));
-    if (activeSpaceId === spaceId) {
-      setActiveSpaceId('default');
-    }
+    if (activeSpaceId === spaceId) setActiveSpaceId('default');
   };
 
   const updateSpace = (spaceId, updates) => {

@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Edit2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Plus, Trash2, Palette } from 'lucide-react';
 import ContextMenu from './ContextMenu';
 
 const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRemoveSpace, onUpdateSpace }) => {
     const [contextMenu, setContextMenu] = useState(null);
-    const [editingSpaceId, setEditingSpaceId] = useState(null);
-    const [editName, setEditName] = useState('');
+    const [colorMenu, setColorMenu] = useState(null);
 
     const colorClassMap = {
         grey: 'bg-gray-500',
@@ -19,47 +19,84 @@ const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRem
         orange: 'bg-orange-500',
     };
 
+    const openContextMenu = (event, space) => {
+        console.log('[SpaceSelector] openContextMenu', {
+            spaceId: space.id,
+            spaceTitle: space.title,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            target: event.target?.className
+        });
+        const rect = event.currentTarget.getBoundingClientRect();
+        const menuWidth = 180;
+        const menuHeight = 110;
+        const padding = 8;
+        const x = Math.min(rect.left, window.innerWidth - menuWidth - padding);
+        const y = Math.min(rect.bottom + 4, window.innerHeight - menuHeight - padding);
+        setContextMenu({ x, y, space });
+    };
+
     const handleContextMenu = (e, space) => {
         e.preventDefault();
-        if (space.id === 'default') return;
-        setContextMenu({
-            x: e.clientX,
-            y: e.clientY,
-            space
+        e.stopPropagation();
+        console.log('[SpaceSelector] onContextMenu fired', {
+            button: e.button,
+            type: e.type,
+            spaceId: space.id
         });
+        openContextMenu(e, space);
+    };
+
+    const handleRightMouseDown = (e, space) => {
+        if (e.button !== 2) return;
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('[SpaceSelector] onMouseDown right button', {
+            button: e.button,
+            type: e.type,
+            spaceId: space.id
+        });
+        openContextMenu(e, space);
     };
 
     const [showColorPicker, setShowColorPicker] = useState(false);
     const pickerRef = useRef(null);
+    const colorMenuRef = useRef(null);
 
     const colors = Object.keys(colorClassMap);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (pickerRef.current && !pickerRef.current.contains(event.target)) {
-                setShowColorPicker(false);
-            }
+            if (pickerRef.current && !pickerRef.current.contains(event.target)) setShowColorPicker(false);
+            if (colorMenuRef.current && !colorMenuRef.current.contains(event.target)) setColorMenu(null);
         };
 
-        if (showColorPicker) {
+        if (showColorPicker || colorMenu) {
             document.addEventListener('mousedown', handleClickOutside);
         }
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [showColorPicker]);
+    }, [showColorPicker, colorMenu]);
+
+    useEffect(() => {
+        if (contextMenu) {
+            console.log('[SpaceSelector] contextMenu set', contextMenu);
+        }
+    }, [contextMenu]);
+
+    useEffect(() => {
+        if (colorMenu) {
+            console.log('[SpaceSelector] colorMenu set', colorMenu);
+        }
+    }, [colorMenu]);
 
     const handleColorSelect = (color) => {
-        onAddSpace(color);
-        setShowColorPicker(false);
-    };
-
-    const handleRename = (space) => {
-        const newName = prompt('Enter new space name:', space.title);
-        if (newName) {
-            onUpdateSpace(space.id, { title: newName });
+        const created = onAddSpace(color);
+        if (!created) {
+            alert('最多支持 4 个 Space（含默认），请先删除或重用已有 Space。');
         }
-        setContextMenu(null);
+        setShowColorPicker(false);
     };
 
     const handleDelete = (space) => {
@@ -69,29 +106,40 @@ const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRem
         setContextMenu(null);
     };
 
+    const handleChangeColor = (space, pos) => {
+        setColorMenu({
+            x: pos?.x ?? 0,
+            y: pos?.y ?? 0,
+            space
+        });
+        setContextMenu(null);
+    };
+
     return (
         <div className="flex items-center gap-2">
             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar px-2">
                 {spaces.map(space => (
-                    <div
+                    <button
                         key={space.id}
-                        className="w-4 h-4 flex items-center justify-center cursor-pointer transition-all group relative"
+                        type="button"
+                        className="w-4 h-4 flex items-center justify-center cursor-pointer transition-all group relative bg-transparent border-0 appearance-none outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 active:outline-none"
                         onClick={() => onSwitchSpace(space.id)}
                         onContextMenu={(e) => handleContextMenu(e, space)}
+                        onMouseDown={(e) => handleRightMouseDown(e, space)}
                         title={space.title}
                     >
-                        <div
+                        <span
                             className={`
-                                rounded-full transition-all duration-200
+                                inline-block rounded-full transition-all duration-200
                                 ${activeSpaceId === space.id
                                     ? `w-2 h-2 ${colorClassMap[space.color] || 'bg-gray-500'}`
                                     : `w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 group-hover:w-2 group-hover:h-2 group-hover:${colorClassMap[space.color] || 'bg-gray-500'}`
                                 }
                             `}
                         />
-                        {/* Invisible hover target to make clicking easier */}
-                        <div className="absolute inset-0 -m-1" />
-                    </div>
+                        {/* hit area */}
+                        <span className="absolute inset-0 -m-1" />
+                    </button>
                 ))}
             </div>
 
@@ -124,18 +172,54 @@ const SpaceSelector = ({ spaces, activeSpaceId, onSwitchSpace, onAddSpace, onRem
                     y={contextMenu.y}
                     onClose={() => setContextMenu(null)}
                     options={[
-                        {
-                            label: 'Rename Space',
-                            icon: <Edit2 size={14} />,
-                            onClick: () => handleRename(contextMenu.space)
-                        },
-                        {
+                        ...(contextMenu.space.id !== 'default' ? [{
                             label: 'Delete Space',
                             icon: <Trash2 size={14} />,
                             onClick: () => handleDelete(contextMenu.space)
+                        }] : [{
+                            label: 'Default space cannot be deleted',
+                            icon: <Trash2 size={14} />,
+                            disabled: true,
+                            onClick: () => {}
+                        }]),
+                        {
+                            label: 'Change Color',
+                            icon: <Palette size={14} />,
+                            onClick: () => handleChangeColor(contextMenu.space, { x: contextMenu.x, y: contextMenu.y })
                         }
                     ]}
                 />
+            )}
+
+            {typeof document !== 'undefined' && colorMenu && createPortal(
+                <div
+                    className="fixed z-[10000] p-2 bg-white dark:bg-[#2B2D31] border border-black/5 dark:border-white/10 rounded-lg shadow-xl grid grid-cols-3 gap-2 min-w-[110px]"
+                    style={{
+                        top: Math.min(colorMenu.y, window.innerHeight - 150),
+                        left: Math.min(colorMenu.x, window.innerWidth - 140)
+                    }}
+                    ref={colorMenuRef}
+                >
+                    {colors.map(color => (
+                        <button
+                            key={color}
+                            className={`w-6 h-6 rounded-full ${colorClassMap[color]} hover:scale-110 transition-transform ring-1 ring-black/5 dark:ring-white/10`}
+                            onClick={() => {
+                                console.log('[SpaceSelector] color picked', color);
+                                onUpdateSpace(colorMenu.space.id, { color });
+                                setColorMenu(null);
+                            }}
+                            title={color}
+                        />
+                    ))}
+                    <button
+                        className="col-span-3 mt-1 w-full text-xs text-arc-muted hover:text-arc-text text-center"
+                        onClick={() => setColorMenu(null)}
+                    >
+                        取消
+                    </button>
+                </div>,
+                document.body
             )}
         </div>
     );

@@ -4,6 +4,7 @@
 - 目标：模拟 Arc 浏览器的侧栏体验，集中展示/管理当前窗口的标签页与分组，并保留关闭记录（幽灵标签）。
 - 技术栈：React 18、Tailwind CSS 3、Vite 构建，图标使用 `lucide-react`。
 - 运行环境：优先在 Chrome 扩展上下文使用 `chrome.tabs`、`chrome.tabGroups`、`chrome.storage`；本地开发无扩展 API 时自动回退到内置 mock 标签数据。
+- 空间（Space）：内置“默认空间”，用户可创建多套 Space，将分组归类后按 Space 过滤侧边栏视图。
 
 ## 快速开始
 - 安装依赖：`npm install`
@@ -16,11 +17,12 @@
 - `src/App.jsx`：仅渲染侧栏组件 `<Sidebar />`。
 - 组件
   - `src/components/Sidebar.jsx`：整体布局与交互中枢（搜索占位、Pinned、分组/收件箱、底部控制、右键菜单、确认弹窗）。
-  - `src/components/TabGroup.jsx`：分组折叠、颜色标记，收件箱可按 host 分块显示。
-  - `src/components/TabItem.jsx`：单标签项，支持幽灵态样式与关闭按钮。
-  - `src/components/PinnedSection.jsx`：固定标签九宫格展示。
-  - `src/components/ContextMenu.jsx`：右键菜单（Pin/Unpin、Remove）。
-  - `src/components/ConfirmationModal.jsx`：删除确认弹窗。
+- `src/components/TabGroup.jsx`：分组折叠、颜色标记，收件箱可按 host 分块显示。
+- `src/components/TabItem.jsx`：单标签项，支持幽灵态样式与关闭按钮。
+- `src/components/PinnedSection.jsx`：固定标签九宫格展示。
+- `src/components/ContextMenu.jsx`：右键菜单（Pin/Unpin、Remove）。
+- `src/components/ConfirmationModal.jsx`：删除确认弹窗。
+- `src/components/SpaceSelector.jsx`：底部彩色圆点选择器，新增/重命名/删除 Space。
 - 状态与主题
   - `src/hooks/useTabs.js`：加载/同步标签与分组，监听 `chrome.tabs`/`chrome.tabGroups` 事件，支持切换、关闭、移除、清理幽灵、Pin/Unpin、分组折叠。
   - `src/context/ThemeContext.jsx`：暗/亮主题切换，`localStorage` 持久化，默认暗色。
@@ -40,12 +42,21 @@
   - Pin/Unpin：`togglePin` 切换固定状态；`PinnedSection` 与列表分区展示。
   - 分组折叠：`toggleGroupCollapse` 本地记录并在可用时同步到 Chrome 分组。
 
+## Space 概念与用法
+- 数据模型：`useTabs` 持有 `spaces` 数组与 `activeSpaceId`，持久化字段为 `savedSpaces`、`activeSpaceId`；每个分组新增 `spaceId`（默认 `"default"`）。
+- 过滤规则：侧栏只显示当前 `activeSpaceId` 下的分组；切回默认空间时，同时展示默认空间与未绑定/丢失空间的分组以避免“孤儿”分组丢失。
+- 底部入口：左下角彩色圆点即 Space 列表，当前 Space 为实心大圆，其他为浅色小圆；点击切换空间。
+- 创建：点击 `+` 打开颜色选择器，选色即创建新 Space，名称默认 `Space N`，可右键（长按触发的上下文菜单）重命名。
+- 重命名/删除：在圆点上右键打开菜单，重命名或删除。默认空间不可删除；删除任意自定义空间会将其分组迁移回默认空间并自动切换到默认空间。
+- 分组归类：在任意分组内的标签右键菜单选择 “Move Group to Space”，即可将该分组切换到指定 Space。
+- 颜色：Space 颜色用于圆点填充与切换时的视觉区分，不影响分组颜色。
+
 ## UI 与交互梳理
 - 顶部：URL/搜索输入占位（暂未接入实际逻辑）。
 - Pinned：六列网格，激活高亮；幽灵置灰并灰度处理。
 - 分组/收件箱：分组头可折叠，左侧彩条；收件箱按域名块展示。
 - 右键菜单：Pin/Unpin、Remove（彻底删除）；点击外部自动关闭。
-- 底部：新建标签、主题切换（Sun/Moon）、清除幽灵、设置入口占位。
+- 底部：Space 选择器（彩色圆点+新增按钮）、新建标签、主题切换（Sun/Moon）、清除幽灵、设置入口占位。
 - 弹窗：移除前的二次确认。
 
 ## 扩展集成提示
