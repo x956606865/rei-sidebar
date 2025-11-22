@@ -37,7 +37,7 @@ const getBaseHost = (hostname = '') => {
     return lastTwo;
 };
 
-const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleCollapse, onContextMenu, onGroupContextMenu, groupByHost = false, groupBySubgroup = false, registerHeaderRef }) => {
+const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleCollapse, onContextMenu, onGroupContextMenu, groupByHost = false, groupBySubgroup = false, autoGroup = false, registerHeaderRef }) => {
     const { id, title, color, collapsed } = group;
 
     // Map Chrome group colors to CSS colors (tailwind classes or hex)
@@ -54,6 +54,120 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
     };
 
     const groupColorClass = colorMap[color] || 'bg-gray-500';
+
+    const groupTabsByHost = (tabList) => {
+        const tabsByHost = new Map();
+        tabList.forEach(tab => {
+            let host = 'Other';
+            try {
+                if (tab.url) {
+                    const url = new URL(tab.url);
+                    if (url.protocol.startsWith('http')) {
+                        host = getBaseHost(url.hostname);
+                    }
+                }
+            } catch (e) {
+                // Invalid URL, keep as Other
+            }
+            if (!tabsByHost.has(host)) {
+                tabsByHost.set(host, []);
+            }
+            tabsByHost.get(host).push(tab);
+        });
+
+        return Array.from(tabsByHost.entries()).sort(([a], [b]) => {
+            if (a === 'Other') return 1;
+            if (b === 'Other') return -1;
+            return a.localeCompare(b, 'zh-Hans');
+        });
+    };
+
+    const renderTabItem = (tab) => (
+        <div key={tab.id} data-tab-id={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
+            <TabItem
+                tab={tab}
+                isActive={tab.id === activeTabId}
+                onClick={() => onTabClick(tab)}
+                onClose={onClose}
+            />
+        </div>
+    );
+
+    const renderGroupedContent = () => {
+        if (groupByHost) {
+            const hostEntries = groupTabsByHost(tabs);
+            return hostEntries.map(([host, hostTabs]) => (
+                <div key={host} className="mb-2 last:mb-0">
+                    {host !== 'Other' && (
+                        <div className="px-2 py-1 text-xs font-bold text-arc-text uppercase tracking-wider opacity-80">
+                            {host}
+                        </div>
+                    )}
+                    <div className="space-y-0.5">
+                        {hostTabs.map(renderTabItem)}
+                    </div>
+                </div>
+            ));
+        }
+
+        if (groupBySubgroup) {
+            const subgroupMap = new Map();
+            const ungrouped = [];
+
+            tabs.forEach(tab => {
+                const subgroupKey = tab.subgroup && tab.subgroup.trim() ? tab.subgroup.trim() : '';
+                if (subgroupKey) {
+                    if (!subgroupMap.has(subgroupKey)) {
+                        subgroupMap.set(subgroupKey, []);
+                    }
+                    subgroupMap.get(subgroupKey).push(tab);
+                } else {
+                    ungrouped.push(tab);
+                }
+            });
+
+            const sections = Array.from(subgroupMap.entries())
+                .sort(([a], [b]) => a.localeCompare(b, 'zh-Hans'))
+                .map(([subgroup, subgroupTabs]) => ({
+                    key: `sub-${subgroup}`,
+                    title: subgroup,
+                    tabs: subgroupTabs,
+                    hideHeader: false
+                }));
+
+            if (autoGroup) {
+                const hostSections = groupTabsByHost(ungrouped).map(([host, hostTabs]) => ({
+                    key: `host-${host}`,
+                    title: host,
+                    tabs: hostTabs,
+                    hideHeader: host === 'Other'
+                }));
+                sections.push(...hostSections);
+            } else if (ungrouped.length > 0) {
+                sections.push({
+                    key: 'ungrouped',
+                    title: 'Ungrouped',
+                    tabs: ungrouped,
+                    hideHeader: false
+                });
+            }
+
+            return sections.map(({ key, title, tabs: sectionTabs, hideHeader }) => (
+                <div key={key} className="mb-3 last:mb-1">
+                    {!hideHeader && (
+                        <div className="px-2 py-1 text-xs font-bold text-arc-text uppercase tracking-wider">
+                            {title}
+                        </div>
+                    )}
+                    <div className="space-y-0.5">
+                        {sectionTabs.map(renderTabItem)}
+                    </div>
+                </div>
+            ));
+        }
+
+        return tabs.map(renderTabItem);
+    };
 
     return (
         <div className="mb-2">
@@ -84,108 +198,7 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                     <div className={`absolute left-[15px] top-0 bottom-2 w-[2px] rounded-full ${groupColorClass} opacity-20`} />
 
                     <div className="pl-6 space-y-0.5">
-                        {groupByHost ? (
-                            (() => {
-                                const tabsByHost = new Map();
-                                tabs.forEach(tab => {
-                                    let host = 'Other';
-                                    try {
-                                        if (tab.url) {
-                                            const url = new URL(tab.url);
-                                            if (url.protocol.startsWith('http')) {
-                                                host = getBaseHost(url.hostname);
-                                            }
-                                        }
-                                    } catch (e) {
-                                        // Invalid URL, keep as Other
-                                    }
-                                    if (!tabsByHost.has(host)) {
-                                        tabsByHost.set(host, []);
-                                    }
-                                    tabsByHost.get(host).push(tab);
-                                });
-
-                                const sortedEntries = Array.from(tabsByHost.entries()).sort(([a], [b]) => {
-                                    if (a === 'Other') return 1;
-                                    if (b === 'Other') return -1;
-                                    return a.localeCompare(b, 'zh-Hans');
-                                });
-
-                                return sortedEntries.map(([host, hostTabs]) => (
-                                    <div key={host} className="mb-2 last:mb-0">
-                                        {host !== 'Other' && (
-                                            <div className="px-2 py-1 text-xs font-bold text-arc-text uppercase tracking-wider opacity-80">
-                                                {host}
-                                            </div>
-                                        )}
-                                        <div className="space-y-0.5">
-                                            {hostTabs.map(tab => (
-                                                <div key={tab.id} data-tab-id={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
-                                                    <TabItem
-                                                        tab={tab}
-                                                        isActive={tab.id === activeTabId}
-                                                        onClick={() => onTabClick(tab)}
-                                                        onClose={onClose}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ));
-                            })()
-                        ) : groupBySubgroup ? (
-                            (() => {
-                                const tabsBySubgroup = new Map();
-                                tabs.forEach(tab => {
-                                    const subgroupKey = tab.subgroup && tab.subgroup.trim() ? tab.subgroup.trim() : '__ungrouped';
-                                    if (!tabsBySubgroup.has(subgroupKey)) {
-                                        tabsBySubgroup.set(subgroupKey, []);
-                                    }
-                                    tabsBySubgroup.get(subgroupKey).push(tab);
-                                });
-
-                                const sortedEntries = Array.from(tabsBySubgroup.entries()).sort(([a], [b]) => {
-                                    if (a === '__ungrouped') return 1;
-                                    if (b === '__ungrouped') return -1;
-                                    return a.localeCompare(b, 'zh-Hans');
-                                });
-
-                                return sortedEntries.map(([subgroup, subgroupTabs]) => {
-                                    const isUngrouped = subgroup === '__ungrouped';
-                                    const displayName = isUngrouped ? 'Ungrouped' : subgroup;
-                                    return (
-                                        <div key={subgroup} className="mb-3 last:mb-1">
-                                            <div className="px-2 py-1 text-xs font-bold text-arc-text uppercase tracking-wider">
-                                                {displayName}
-                                            </div>
-                                            <div className="space-y-0.5">
-                                                {subgroupTabs.map(tab => (
-                                                    <div key={tab.id} data-tab-id={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
-                                                        <TabItem
-                                                            tab={tab}
-                                                            isActive={tab.id === activeTabId}
-                                                            onClick={() => onTabClick(tab)}
-                                                            onClose={onClose}
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    );
-                                });
-                            })()
-                        ) : (
-                            tabs.map(tab => (
-                                <div key={tab.id} data-tab-id={tab.id} onContextMenu={(e) => onContextMenu(e, tab)}>
-                                    <TabItem
-                                        tab={tab}
-                                        isActive={tab.id === activeTabId}
-                                        onClick={() => onTabClick(tab)}
-                                        onClose={onClose}
-                                    />
-                                </div>
-                            ))
-                        )}
+                        {renderGroupedContent()}
                     </div>
                 </div>
             )}

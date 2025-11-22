@@ -35,7 +35,10 @@ const Sidebar = () => {
         moveGroupToSpace,
         updateGroup,
         removeGroup,
-        addGroupToSpace
+        addGroupToSpace,
+        toggleGroupAutoGroup,
+        inboxAutoGroup,
+        setInboxAutoGroup
     } = useTabs();
     const { theme, toggleTheme } = useTheme();
     const [contextMenu, setContextMenu] = useState(null);
@@ -292,7 +295,8 @@ const Sidebar = () => {
                     id: 'inbox',
                     title: 'Inbox',
                     color: 'grey',
-                    collapsed: isInboxCollapsed
+                    collapsed: isInboxCollapsed,
+                    autoGroup: inboxAutoGroup
                 },
                 tabs: inboxTabs
             });
@@ -337,7 +341,7 @@ const Sidebar = () => {
         });
 
         return items;
-    }, [unpinnedTabs, groups, isInboxCollapsed, activeSpaceId, spaces]);
+    }, [unpinnedTabs, groups, isInboxCollapsed, activeSpaceId, spaces, inboxAutoGroup]);
 
     useEffect(() => {
         const meta = new Map();
@@ -425,6 +429,107 @@ const Sidebar = () => {
         setContextMenu(null);
     };
 
+    const handleToggleGroupAutoGroup = (group) => {
+        if (!group?.id) return;
+        if (group.id === 'inbox') {
+            setInboxAutoGroup(prev => !prev);
+        } else {
+            toggleGroupAutoGroup(group.id);
+        }
+        setContextMenu(null);
+    };
+
+    const getContextMenuOptions = () => {
+        if (!contextMenu) return [];
+        if (contextMenu.group) {
+            const group = contextMenu.group;
+            const isInboxGroup = group.id === 'inbox';
+            const liveGroup = groups.find(g => g.id === group.id);
+            const autoGroupChecked = isInboxGroup ? inboxAutoGroup : !!liveGroup?.autoGroup;
+
+            const options = [
+                {
+                    label: 'Auto group by host',
+                    type: 'checkbox',
+                    checked: autoGroupChecked,
+                    onClick: () => handleToggleGroupAutoGroup(group)
+                }
+            ];
+
+            if (!isInboxGroup) {
+                options.push(
+                    {
+                        label: 'Edit',
+                        icon: <Edit2 size={14} />,
+                        onClick: () => handleOpenGroupEdit(group)
+                    },
+                    {
+                        label: 'Delete',
+                        icon: <Trash2 size={14} />,
+                        onClick: () => handleGroupDelete(group)
+                    },
+                    {
+                        label: 'Move to',
+                        icon: <FolderOpen size={14} />,
+                        subMenu: spaces
+                            .filter(s => s.id !== (group.spaceId || 'default'))
+                            .map(s => ({
+                                label: (
+                                    <span className="flex items-center gap-2" title={s.title}>
+                                        <span className={`w-3 h-3 rounded-full ${colorClassMap[s.color] || 'bg-gray-500'}`} />
+                                    </span>
+                                ),
+                                onClick: () => moveGroupToSpace(group.id, s.id)
+                            }))
+                    }
+                );
+            }
+            return options;
+        }
+
+        return [
+            ...(contextMenu.tab && (!contextMenu.tab.groupId || contextMenu.tab.groupId === -1) ? [{
+                label: 'Add to Group',
+                icon: <FolderPlus size={14} />,
+                onClick: () => handleOpenGroupModal(contextMenu.tab, 'add')
+            }] : []),
+            ...(contextMenu.tab && contextMenu.tab.groupId && contextMenu.tab.groupId !== -1 ? [{
+                label: 'Move to Group',
+                icon: <FolderOpen size={14} />,
+                onClick: () => handleOpenGroupModal(contextMenu.tab, 'move')
+            }] : []),
+            ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
+                label: 'Add to Subgroup',
+                icon: <FolderPlus size={14} />,
+                onClick: () => handleOpenSubgroupModal(contextMenu.tab)
+            }] : []),
+            ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
+                label: 'Move to',
+                icon: <FolderOpen size={14} />,
+                subMenu: spaces
+                    .filter(s => s.id !== (groups.find(g => g.id === contextMenu.tab.groupId)?.spaceId || 'default'))
+                    .map(s => ({
+                        label: (
+                            <span className="flex items-center gap-2" title={s.title}>
+                                <span className={`w-3 h-3 rounded-full ${colorClassMap[s.color] || 'bg-gray-500'}`} />
+                            </span>
+                        ),
+                        onClick: () => moveGroupToSpace(contextMenu.tab.groupId, s.id)
+                    }))
+            }] : []),
+            {
+                label: contextMenu.tab.isPinned ? 'Unpin Tab' : 'Pin Tab',
+                icon: contextMenu.tab.isPinned ? <PinOff size={14} /> : <Pin size={14} />,
+                onClick: () => togglePin(contextMenu.tab.id)
+            },
+            {
+                label: 'Remove Tab',
+                icon: <Trash2 size={14} />,
+                onClick: () => handleRemoveClick(contextMenu.tab)
+            }
+        ];
+    };
+
     return (
         <div className="flex flex-col h-full bg-arc-bg text-arc-text select-none font-sans relative">
             {/* Pinned Tabs */}
@@ -464,7 +569,8 @@ const Sidebar = () => {
                                 onClose={removeTab}
                                 onToggleCollapse={() => setIsInboxCollapsed(!isInboxCollapsed)}
                                 onContextMenu={handleContextMenu}
-                                groupByHost={true}
+                                onGroupContextMenu={handleGroupContextMenu}
+                                groupByHost={inboxAutoGroup}
                                 registerHeaderRef={registerHeaderRef}
                             />
                         );
@@ -481,6 +587,7 @@ const Sidebar = () => {
                                 onContextMenu={handleContextMenu}
                                 onGroupContextMenu={handleGroupContextMenu}
                                 groupBySubgroup={true}
+                                autoGroup={item.group.autoGroup}
                                 registerHeaderRef={registerHeaderRef}
                             />
                         );
@@ -537,76 +644,7 @@ const Sidebar = () => {
                     x={contextMenu.x}
                     y={contextMenu.y}
                     onClose={() => setContextMenu(null)}
-                    options={
-                        contextMenu.group
-                            ? [
-                                {
-                                    label: 'Edit',
-                                    icon: <Edit2 size={14} />,
-                                    onClick: () => handleOpenGroupEdit(contextMenu.group)
-                                },
-                                {
-                                    label: 'Delete',
-                                    icon: <Trash2 size={14} />,
-                                    onClick: () => handleGroupDelete(contextMenu.group)
-                                },
-                                {
-                                    label: 'Move to',
-                                    icon: <FolderOpen size={14} />,
-                                    subMenu: spaces
-                                        .filter(s => s.id !== (contextMenu.group.spaceId || 'default'))
-                                        .map(s => ({
-                                            label: (
-                                                <span className="flex items-center gap-2" title={s.title}>
-                                                    <span className={`w-3 h-3 rounded-full ${colorClassMap[s.color] || 'bg-gray-500'}`} />
-                                                </span>
-                                            ),
-                                            onClick: () => moveGroupToSpace(contextMenu.group.id, s.id)
-                                        }))
-                                }
-                            ]
-                            : [
-                                ...(contextMenu.tab && (!contextMenu.tab.groupId || contextMenu.tab.groupId === -1) ? [{
-                                    label: 'Add to Group',
-                                    icon: <FolderPlus size={14} />,
-                                    onClick: () => handleOpenGroupModal(contextMenu.tab, 'add')
-                                }] : []),
-                                ...(contextMenu.tab && contextMenu.tab.groupId && contextMenu.tab.groupId !== -1 ? [{
-                                    label: 'Move to Group',
-                                    icon: <FolderOpen size={14} />,
-                                    onClick: () => handleOpenGroupModal(contextMenu.tab, 'move')
-                                }] : []),
-                                ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
-                                    label: 'Add to Subgroup',
-                                    icon: <FolderPlus size={14} />,
-                                    onClick: () => handleOpenSubgroupModal(contextMenu.tab)
-                                }] : []),
-                                ...(contextMenu.tab && groups.some(g => g.id === contextMenu.tab.groupId) ? [{
-                                    label: 'Move to',
-                                    icon: <FolderOpen size={14} />,
-                                    subMenu: spaces
-                                        .filter(s => s.id !== (groups.find(g => g.id === contextMenu.tab.groupId)?.spaceId || 'default'))
-                                        .map(s => ({
-                                            label: (
-                                                <span className="flex items-center gap-2" title={s.title}>
-                                                    <span className={`w-3 h-3 rounded-full ${colorClassMap[s.color] || 'bg-gray-500'}`} />
-                                                </span>
-                                            ),
-                                            onClick: () => moveGroupToSpace(contextMenu.tab.groupId, s.id)
-                                        }))
-                                }] : []),
-                                {
-                                    label: contextMenu.tab.isPinned ? 'Unpin Tab' : 'Pin Tab',
-                                    icon: contextMenu.tab.isPinned ? <PinOff size={14} /> : <Pin size={14} />,
-                                    onClick: () => togglePin(contextMenu.tab.id)
-                                },
-                                {
-                                    label: 'Remove Tab',
-                                    icon: <Trash2 size={14} />,
-                                    onClick: () => handleRemoveClick(contextMenu.tab)
-                                }
-                            ]
-                    }
+                    options={getContextMenuOptions()}
                 />
             )}
 

@@ -54,66 +54,77 @@ const ContextMenu = ({ x, y, onClose, options }) => {
             style={{ top: pos.y, left: pos.x }}
             onContextMenu={(e) => e.preventDefault()}
         >
-            {options.map((option, index) => (
-                <div
-                    key={index}
-                    className="relative"
-                    onMouseEnter={() => setHoveredIndex(index)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                >
-                    <button
-                        className={`w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 justify-between group ${
-                            option.disabled
-                                ? 'text-gray-500 cursor-not-allowed'
-                                : 'text-white/90 hover:bg-white/10 transition-colors'
-                        }`}
-                        disabled={option.disabled}
-                        onClick={(e) => {
-                            if (option.disabled) return;
-                            if (option.subMenu) return;
-                            option.onClick();
-                            onClose();
-                        }}
+            {options.map((option, index) => {
+                const isCheckbox = option.type === 'checkbox' || typeof option.checked === 'boolean';
+                return (
+                    <div
+                        key={index}
+                        className="relative"
+                        onMouseEnter={() => setHoveredIndex(index)}
+                        onMouseLeave={() => setHoveredIndex(null)}
                     >
-                        <div className="flex items-center gap-2">
-                            {option.icon && <span className="w-4 h-4">{option.icon}</span>}
-                            {option.label}
-                        </div>
-                        {option.subMenu && <span className={`text-gray-400 ${option.disabled ? '' : 'group-hover:text-white'}`}>▶</span>}
-                    </button>
-
-                    {option.subMenu && hoveredIndex === index && (() => {
-                        const submenuWidth = 110;
-                        const padding = 8;
-                        const canMeasure = typeof window !== 'undefined';
-                        const openRight = canMeasure
-                            ? pos.x + (menuSize.width || 160) + submenuWidth + padding <= window.innerWidth
-                            : true;
-                        const submenuStyle = openRight
-                            ? { left: '100%', marginLeft: '4px' }
-                            : { right: '100%', marginRight: '4px' };
-                        return (
-                            <div
-                                className="absolute top-0 bg-[#2B2D31] border border-white/10 rounded-lg shadow-xl py-1 min-w-[96px]"
-                                style={submenuStyle}
-                            >
-                                {option.subMenu.map((subOption, subIndex) => (
-                                    <button
-                                        key={subIndex}
-                                        className="w-full text-left px-2 py-1.5 text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-2"
-                                        onClick={() => {
-                                            subOption.onClick();
-                                            onClose();
-                                        }}
-                                    >
-                                        {subOption.label}
-                                    </button>
-                                ))}
+                        <button
+                            className={`w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 justify-between group ${
+                                option.disabled
+                                    ? 'text-gray-500 cursor-not-allowed'
+                                    : 'text-white/90 hover:bg-white/10 transition-colors'
+                            }`}
+                            disabled={option.disabled}
+                            onClick={(e) => {
+                                if (option.disabled) return;
+                                if (option.subMenu) return;
+                                option.onClick();
+                                onClose();
+                            }}
+                        >
+                            <div className="flex items-center gap-2">
+                                {isCheckbox ? (
+                                    <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] leading-none ${
+                                        option.checked ? 'border-blue-400 bg-blue-500 text-black' : 'border-white/30'
+                                    }`}>
+                                        {option.checked ? '✓' : ''}
+                                    </span>
+                                ) : (
+                                    option.icon && <span className="w-4 h-4">{option.icon}</span>
+                                )}
+                                {option.label}
                             </div>
-                        );
-                    })()}
-                </div>
-            ))}
+                            {option.subMenu && <span className={`text-gray-400 ${option.disabled ? '' : 'group-hover:text-white'}`}>▶</span>}
+                        </button>
+
+                        {option.subMenu && hoveredIndex === index && (() => {
+                            const submenuWidth = 110;
+                            const padding = 8;
+                            const canMeasure = typeof window !== 'undefined';
+                            const openRight = canMeasure
+                                ? pos.x + (menuSize.width || 160) + submenuWidth + padding <= window.innerWidth
+                                : true;
+                            const submenuStyle = openRight
+                                ? { left: '100%', marginLeft: '4px' }
+                                : { right: '100%', marginRight: '4px' };
+                            return (
+                                <div
+                                    className="absolute top-0 bg-[#2B2D31] border border-white/10 rounded-lg shadow-xl py-1 min-w-[96px]"
+                                    style={submenuStyle}
+                                >
+                                    {option.subMenu.map((subOption, subIndex) => (
+                                        <button
+                                            key={subIndex}
+                                            className="w-full text-left px-2 py-1.5 text-sm text-white/90 hover:bg-white/10 transition-colors flex items-center gap-2"
+                                            onClick={() => {
+                                                subOption.onClick();
+                                                onClose();
+                                            }}
+                                        >
+                                            {subOption.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            );
+                        })()}
+                    </div>
+                );
+            })}
         </div>,
         document.body
     );

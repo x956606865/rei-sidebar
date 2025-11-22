@@ -344,11 +344,16 @@ export const useTabs = () => {
     }
   };
 
+  const toggleGroupAutoGroup = (groupId) => {
+    setGroups(prev => prev.map(g => g.id === groupId ? { ...g, autoGroup: !g.autoGroup } : g));
+  };
+
   const getExportPayload = () => {
     return {
       meta: {
         version: 1,
-        exportedAt: new Date().toISOString()
+        exportedAt: new Date().toISOString(),
+        inboxAutoGroup
       },
       spaces,
       activeSpaceId,
@@ -358,7 +363,8 @@ export const useTabs = () => {
         color: g.color,
         collapsed: !!g.collapsed,
         isGhost: !!g.isGhost,
-        spaceId: g.spaceId || 'default'
+        spaceId: g.spaceId || 'default',
+        autoGroup: !!g.autoGroup
       })),
       tabs: tabs.map(t => ({
         id: t.id,
@@ -377,6 +383,9 @@ export const useTabs = () => {
     const incomingSpaces = Array.isArray(payload.spaces) ? payload.spaces : [];
     const incomingGroups = Array.isArray(payload.groups) ? payload.groups : [];
     const incomingTabs = Array.isArray(payload.tabs) ? payload.tabs : [];
+    const importedInboxAutoGroup = typeof payload?.meta?.inboxAutoGroup === 'boolean'
+      ? payload.meta.inboxAutoGroup
+      : inboxAutoGroup;
 
     // Merge spaces with cap (4 total including default)
     const normalize = (title = '') => title.trim().toLowerCase();
@@ -429,7 +438,8 @@ export const useTabs = () => {
         color: group.color || 'grey',
         collapsed: !!group.collapsed,
         isGhost: true,
-        spaceId: fallbackSpaceId
+        spaceId: fallbackSpaceId,
+        autoGroup: !!group.autoGroup
       });
     });
 
@@ -484,6 +494,7 @@ export const useTabs = () => {
 
     setSpaces(mergedSpaces.slice(0, maxSpaces));
     setActiveSpaceId(importedActiveSpaceId);
+    setInboxAutoGroup(importedInboxAutoGroup);
 
     return {
       addedGroups: addedGroups.length,
@@ -510,7 +521,8 @@ export const useTabs = () => {
         title: newGroupTitle,
         color: 'grey',
         collapsed: false,
-        isGhost: false
+        isGhost: false,
+        autoGroup: false
       };
       resolvedGroupId = createdGroup.id;
       setGroups(prev => [...prev, createdGroup]);
@@ -640,7 +652,8 @@ export const useTabs = () => {
       color: 'grey',
       collapsed: false,
       isGhost: true,
-      spaceId: targetSpaceId
+      spaceId: targetSpaceId,
+      autoGroup: false
     };
     setGroups(prev => [...prev, newGroup]);
     return newGroup;
@@ -657,10 +670,13 @@ export const useTabs = () => {
     togglePin,
     groups,
     toggleGroupCollapse,
+    toggleGroupAutoGroup,
     getExportPayload,
     importData,
     setTabSubgroup,
     changeTabGroup,
+    inboxAutoGroup,
+    setInboxAutoGroup,
     spaces,
     activeSpaceId,
     setActiveSpaceId,
