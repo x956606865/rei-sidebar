@@ -17,6 +17,7 @@ export const useTabs = () => {
   const [activeTabId, setActiveTabId] = useState(null);
   const [spaces, setSpaces] = useState([{ id: 'default', title: 'Default', color: 'blue' }]);
   const [activeSpaceId, setActiveSpaceId] = useState('default');
+  const [inboxAutoGroup, setInboxAutoGroup] = useState(true);
   const isInternalUpdate = useRef(false);
 
   // Load tabs from storage or sync with current window
@@ -34,11 +35,12 @@ export const useTabs = () => {
       }
 
       // Load persisted tabs and groups
-      const storage = await chrome.storage.local.get(['savedTabs', 'savedGroups', 'savedSpaces', 'activeSpaceId']);
+      const storage = await chrome.storage.local.get(['savedTabs', 'savedGroups', 'savedSpaces', 'activeSpaceId', 'inboxAutoGroup']);
       let savedTabs = storage.savedTabs || [];
-      let savedGroups = storage.savedGroups || [];
+      let savedGroups = (storage.savedGroups || []).map(g => ({ ...g, autoGroup: !!g.autoGroup }));
       let savedSpaces = storage.savedSpaces || [{ id: 'default', title: 'Default', color: 'blue' }];
       let savedActiveSpaceId = storage.activeSpaceId || 'default';
+      const savedInboxAutoGroup = typeof storage.inboxAutoGroup === 'boolean' ? storage.inboxAutoGroup : true;
 
       // Get current actual tabs; groups are maintained locally without reading from Chrome
       const currentTabs = await chrome.tabs.query({ currentWindow: true });
@@ -86,6 +88,7 @@ export const useTabs = () => {
       setGroups(newGroupsState);
       setSpaces(savedSpaces);
       setActiveSpaceId(savedActiveSpaceId);
+      setInboxAutoGroup(savedInboxAutoGroup);
 
       const activeTab = currentTabs.find(t => t.active);
       if (activeTab) setActiveTabId(activeTab.id);
@@ -118,7 +121,8 @@ export const useTabs = () => {
           color: g.color,
           collapsed: g.collapsed,
           isGhost: g.isGhost,
-          spaceId: g.spaceId || 'default'
+          spaceId: g.spaceId || 'default',
+          autoGroup: !!g.autoGroup
         }));
         chrome.storage.local.set({ savedGroups: groupsToSave });
       }
@@ -126,8 +130,10 @@ export const useTabs = () => {
       if (spaces.length > 0) {
         chrome.storage.local.set({ savedSpaces: spaces, activeSpaceId });
       }
+
+      chrome.storage.local.set({ inboxAutoGroup });
     }
-  }, [tabs, groups, spaces, activeSpaceId]);
+  }, [tabs, groups, spaces, activeSpaceId, inboxAutoGroup]);
 
   // Listen for tab updates
   useEffect(() => {
@@ -164,11 +170,11 @@ export const useTabs = () => {
     };
 
     const handleGroupCreated = (group) => {
-      setGroups(prev => [...prev, { ...group, isGhost: false }]);
+      setGroups(prev => [...prev, { ...group, isGhost: false, autoGroup: false }]);
     };
 
     const handleGroupUpdated = (group) => {
-      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, ...group, isGhost: false } : g));
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, ...group, isGhost: false, autoGroup: g.autoGroup ?? false } : g));
     };
 
     const handleGroupRemoved = (groupId) => {
@@ -203,6 +209,26 @@ export const useTabs = () => {
     };
   }, []);
 
+  const recreateTab = async (tab) => {
+    // Reopen a missing/ghost tab and keep local metadata
+    isInternalUpdate.current = true;
+    const newTab = await chrome.tabs.create({ url: tab.url, active: true });
+
+    setTabs(prev => prev.map(t => t.id === tab.id
+      ? {
+          ...newTab,
+          isGhost: false,
+          groupId: t.groupId ?? tab.groupId ?? -1,
+          spaceId: t.spaceId ?? tab.spaceId ?? 'default',
+          subgroup: t.subgroup ?? tab.subgroup
+        }
+      : t));
+
+    setActiveTabId(newTab.id);
+    // Let event listeners settle without duplicating updates
+    setTimeout(() => { isInternalUpdate.current = false; }, 100);
+  };
+
   const switchToTab = async (tab) => {
     if (typeof chrome === 'undefined' || !chrome.tabs) {
       setActiveTabId(tab.id);
@@ -210,26 +236,30 @@ export const useTabs = () => {
     }
 
     if (tab.isGhost) {
-      // Reopen ghost tab
-      isInternalUpdate.current = true;
-      const newTab = await chrome.tabs.create({ url: tab.url, active: true });
+      await recreateTab(tab);
+      return;
+    }
 
-      // Replace ghost tab with new tab in state
-      setTabs(prev => prev.map(t => t.id === tab.id
-        ? {
-            ...newTab,
-            isGhost: false,
-            groupId: t.groupId ?? tab.groupId ?? -1,
-            spaceId: t.spaceId ?? tab.spaceId ?? 'default',
-            subgroup: t.subgroup ?? tab.subgroup
-          }
-        : t));
-      setActiveTabId(newTab.id);
-
-      // Small delay to allow listeners to settle if needed, though isInternalUpdate handles most
-      setTimeout(() => { isInternalUpdate.current = false; }, 100);
-    } else {
+    try {
       await chrome.tabs.update(tab.id, { active: true });
+    } catch (err) {
+      // When Chrome reports "No tab with id", mark it as ghost and recreate so the click still works
+      console.warn('Failed to activate tab; checking existence before recreating', err);
+
+      // Avoid duplicating a still-existing (e.g., frozen) tab: re-check by id first
+      try {
+        const liveTab = await chrome.tabs.get(tab.id);
+        if (liveTab) {
+          await chrome.tabs.update(tab.id, { active: true });
+          return;
+        }
+      } catch (getErr) {
+        // getErr indicates the tab truly does not exist; proceed to recreate
+        console.warn('Tab not found on re-check; will recreate', getErr);
+      }
+
+      setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, isGhost: true } : t));
+      await recreateTab({ ...tab, isGhost: true });
     }
   };
 
@@ -250,7 +280,12 @@ export const useTabs = () => {
     } else {
       // If it's a real tab, close it in browser. 
       // The 'onRemoved' listener will handle marking it as ghost.
-      await chrome.tabs.remove(tabId);
+      try {
+        await chrome.tabs.remove(tabId);
+      } catch (err) {
+        console.warn('Failed to close tab; marking as ghost', err);
+        setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isGhost: true } : t));
+      }
     }
   };
 
