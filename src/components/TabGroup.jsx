@@ -2,6 +2,41 @@ import React from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import TabItem from './TabItem';
 
+const multiPartTlds = new Set([
+    'co.uk', 'org.uk', 'gov.uk', 'ac.uk', 'sch.uk',
+    'com.au', 'net.au', 'org.au', 'edu.au',
+    'com.br', 'com.cn', 'net.cn', 'com.hk', 'com.sg', 'com.tw',
+    'co.jp', 'ne.jp', 'or.jp', 'co.kr',
+    'com.mx', 'com.ar', 'com.cl', 'com.co'
+]);
+
+const ipv4Pattern = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+const ipv6Pattern = /^[0-9a-f:]+$/i;
+
+const getBaseHost = (hostname = '') => {
+    const stripped = hostname.replace(/^www\./i, '');
+    const host = stripped.toLowerCase();
+
+    // Keep full host for IP addresses
+    if (ipv4Pattern.test(host) || ipv6Pattern.test(host)) {
+        return stripped; // preserve original casing (though URL.hostname is lowercase)
+    }
+
+    const parts = host.split('.');
+    if (parts.length <= 2) return host;
+
+    const lastTwo = parts.slice(-2).join('.');
+    const lastThree = parts.slice(-3).join('.');
+
+    if (multiPartTlds.has(lastTwo)) {
+        return parts.slice(-3).join('.');
+    }
+    if (multiPartTlds.has(lastThree)) {
+        return lastThree;
+    }
+    return lastTwo;
+};
+
 const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleCollapse, onContextMenu, onGroupContextMenu, groupByHost = false, groupBySubgroup = false, registerHeaderRef }) => {
     const { id, title, color, collapsed } = group;
 
@@ -58,7 +93,7 @@ const TabGroup = ({ group, tabs, activeTabId, onTabClick, onClose, onToggleColla
                                         if (tab.url) {
                                             const url = new URL(tab.url);
                                             if (url.protocol.startsWith('http')) {
-                                                host = url.hostname.replace(/^www\./, '');
+                                                host = getBaseHost(url.hostname);
                                             }
                                         }
                                     } catch (e) {

@@ -53,6 +53,7 @@ const Sidebar = () => {
     const [stickyGroup, setStickyGroup] = useState(null);
     const groupHeaderRefs = useRef(new Map());
     const groupMetaRef = useRef(new Map());
+    const activeTabUrlRef = useRef({ tabId: null, url: null });
 
     const colorClassMap = {
         grey: 'bg-gray-500',
@@ -222,6 +223,31 @@ const Sidebar = () => {
             targetPinned.scrollIntoView({ block: 'center', behavior: 'smooth', inline: 'nearest' });
         }
     };
+
+    useEffect(() => {
+        if (!activeTabId) return;
+
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (!activeTab) return;
+
+        const previous = activeTabUrlRef.current;
+        const isSameTab = previous.tabId === activeTabId;
+        const urlReady = !!activeTab.url;
+        const urlChangedWhileActive = isSameTab && urlReady && activeTab.url !== previous.url;
+
+        // When the active tab gets its URL (e.g., after load) and stays active, scroll it into view.
+        if (urlChangedWhileActive) {
+            activeTabUrlRef.current = { tabId: activeTabId, url: activeTab.url };
+            requestAnimationFrame(() => {
+                setTimeout(handleScrollToActive, 0);
+            });
+            return;
+        }
+
+        if (!isSameTab) {
+            activeTabUrlRef.current = { tabId: activeTabId, url: activeTab.url };
+        }
+    }, [activeTabId, tabs]);
 
     const pinnedTabs = tabs.filter(t => t.isPinned);
     const unpinnedTabs = tabs.filter(t => !t.isPinned);
