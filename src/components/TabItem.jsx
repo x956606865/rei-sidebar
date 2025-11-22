@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Snowflake } from 'lucide-react';
 
 const TabItem = ({ tab, isActive, onClick, onClose }) => {
     const [showUrl, setShowUrl] = useState(false);
@@ -15,6 +15,8 @@ const TabItem = ({ tab, isActive, onClick, onClose }) => {
         timerRef.current = null;
         setShowUrl(false);
     };
+
+    const isDiscarded = !!tab.discarded;
 
     return (
         <div
@@ -43,9 +45,19 @@ const TabItem = ({ tab, isActive, onClick, onClose }) => {
             </div>
 
             {/* Title */}
-            <span className="flex-1 truncate select-none">
-                {tab.title}
+            <span className="flex-1 truncate select-none flex items-center gap-1">
+                <span className="truncate">{tab.title}</span>
             </span>
+
+            {/* State badges */}
+            {isDiscarded && (
+                <Snowflake
+                    size={12}
+                    className="text-sky-300 shrink-0"
+                    title="已冻结 / 已挂起"
+                    aria-label="discarded-tab"
+                />
+            )}
 
             {/* Close Button (visible on hover) */}
             <button
